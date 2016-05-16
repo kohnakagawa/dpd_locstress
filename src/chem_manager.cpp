@@ -68,9 +68,7 @@ void ChemManager:: DetChemReac(const Parameter& param,
 }
 
 //ASSUME: tailN <= headN
-void ChemManager::ReSearchNearest(const Parameter& param,
-				  ChemInfo& cheminfo)
-{
+void ChemManager::ReSearchNearest(ChemInfo& cheminfo) {
   for(int tail_idx=0; tail_idx<Parameter::SYS_SIZE; tail_idx++){
     const int head_idx = cheminfo.near_info[tail_idx].idx;
     if( (head_idx != -1) && (cheminfo.lipid_unit[tail_idx] == Parameter::REAC_PART)){
@@ -85,8 +83,7 @@ void ChemManager::ReSearchNearest(const Parameter& param,
   }
 }
 
-void ChemManager::ClearNearInfo(const Parameter& param,
-				ChemInfo& cheminfo)
+void ChemManager::ClearNearInfo(ChemInfo& cheminfo)
 {
   for(int i=0; i<Parameter::SYS_SIZE; i++){
     cheminfo.near_info[i].dist = 4.0;
@@ -95,8 +92,7 @@ void ChemManager::ClearNearInfo(const Parameter& param,
   }
 }
 
-void ChemManager::RegistLipidIdx(const Parameter& param,
-				 ChemInfo& cheminfo){
+void ChemManager::RegistLipidIdx(ChemInfo& cheminfo) {
   for(int i=0; i<Parameter::SYS_SIZE; i++){
     bool chm_flag = false;
     const int l_idx     = cheminfo.lipid_idx[i];

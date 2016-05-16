@@ -28,7 +28,7 @@ std::string Observer::Type2Fname(const int type, const Parameter& param) {
   case MACRO_VAL:
     return param.cur_dir + "/mval.txt";
   case PTCL_CONFIG:
-    return param.cur_dir + "/particle_data.txt";
+    return param.cur_dir + "/traject.xyz";
   case LOCAL_VAL:
     return param.cur_dir + "/mlocval.txt";
   case PRESSURE:
@@ -38,7 +38,7 @@ std::string Observer::Type2Fname(const int type, const Parameter& param) {
   case CONFIG_TEMP:
     return param.cur_dir + "/configtemp.txt";
   case FINAL_CONFIG:
-    return param.cur_dir + "/fin_config.txt";
+    return param.cur_dir + "/fin_config.xyz";
   case HEIGHT_DIST:
     return param.cur_dir + "/height_dist.txt";
   default:
@@ -62,7 +62,7 @@ double Observer::CalcKinTempera(const dpdsystem &sDPD) {
   return kin_temp;
 }
 
-double Observer::CalcDiffs(const dpdsystem& sDPD, const Parameter& param) {
+double Observer::CalcDiffs(const dpdsystem& sDPD) {
   double difsum = std::accumulate(sDPD.delta_sumr, sDPD.delta_sumr + Parameter::SYS_SIZE, 0.0,
 				  [](const double sum, const double3& val) {return sum + val * val;});
   difsum /= Parameter::SYS_SIZE;
@@ -203,12 +203,12 @@ double Observer::CalcOrientOrder(const dpdsystem& sDPD,const Parameter& param) {
   return orderS;
 }
 
-void Observer::CalcMembraneHeight(const dpdsystem& sDPD, const Parameter& param) {
+void Observer::CalcMembraneHeight(const dpdsystem& sDPD) {
   hei.assign(hei.size(), 0.0);
   hei_elem.assign(hei_elem.size(), 0);
   for (int i = 0; i < Parameter::SYS_SIZE; i++) {
     if (sDPD.prop[i] != 0) {
-      const int hash = GenHash2d(sDPD.pr[i], param);
+      const int hash = GenHash2d(sDPD.pr[i]);
       hei[hash] += sDPD.pr[i].y;
       hei_elem[hash]++;
     }
@@ -222,7 +222,7 @@ void Observer::CalcMembraneHeight(const dpdsystem& sDPD, const Parameter& param)
 
 void Observer::DumpMacroVal(const dpdsystem& sDPD,const Parameter& param){
   const double kT = CalcKinTempera(sDPD);
-  const double Dif = CalcDiffs(sDPD, param);
+  const double Dif = CalcDiffs(sDPD);
   const double thick = CalcThickness(sDPD, param);
   const double OrderS = CalcOrientOrder(sDPD, param);
   fprintf(fp[MACRO_VAL], "%.10g %.10g %.10g %.10g \n", kT, Dif, thick, OrderS);
@@ -241,8 +241,12 @@ void Observer::DumpConfigTempera(const double configT) {
   fprintf(fp[CONFIG_TEMP], "%.10g \n", configT);
 }
 
-void Observer::DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const Parameter& param, FILE* fp) {
-  for(int i=0; i<Parameter::SYS_SIZE; i++){
+void Observer::DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, FILE* fp) {
+  static constexpr char atom_type[] = {
+    'O', 'N', 'C', 'S'
+  };
+  
+  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
     const double3 pos   = sDPD.pr[i];
     const double3 vel   = sDPD.pv[i];
     const par_prop prp  = sDPD.prop[i];
@@ -255,24 +259,23 @@ void Observer::DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, 
     //pos.x pos.y pos.z vel.x vel.y vel.z prop prtcl_chem
     //lipid_chem lipid_unit lipid_idx
     //part_idx
-    if(prp == Water){
-      fprintf(fp, "%.10g %.10g %.10g %.10g %.10g %.10g %d %d %d %d %d %d \n",
-	      pos.x, pos.y, pos.z, vel.x, vel.y, vel.z, prp, p_chem,
+    if (prp == Water) {
+      fprintf(fp, "%c %.15g %.15g %.15g %.15g %.15g %.15g %d %d %d %d %d %d \n",
+	      atom_type[prp], pos.x, pos.y, pos.z, vel.x, vel.y, vel.z, prp, p_chem,
 	      false, l_unit, l_idx,
 	      part_idx);
-    }else{
+    } else {
       bool chem = false;
-      if(l_idx != -1) chem = sDPD.GetLipidChemConf(l_idx);
-      fprintf(fp, "%.10g %.10g %.10g %.10g %.10g %.10g %d %d %d %d %d %d \n",
-	      pos.x, pos.y, pos.z, vel.x, vel.y, vel.z, prp, p_chem,
+      if (l_idx != -1) chem = sDPD.GetLipidChemConf(l_idx);
+      fprintf(fp, "%c %.15g %.15g %.15g %.15g %.15g %.15g %d %d %d %d %d %d \n",
+	      atom_type[prp], pos.x, pos.y, pos.z, vel.x, vel.y, vel.z, prp, p_chem,
 	      chem, l_unit, l_idx,
 	      part_idx);
     }
   }
-  fflush(fp);
 }
 
-void Observer::DumpLocalVal(const dpdsystem &sDPD,const Parameter& param){
+void Observer::DumpLocalVal(const dpdsystem &sDPD,const Parameter& param) {
   const double3* t_r = sDPD.pr;
   const double3* t_v = sDPD.pv;
 
@@ -298,23 +301,21 @@ void Observer::DumpLocalVal(const dpdsystem &sDPD,const Parameter& param){
   
   for (size_t i = 0; i < loc_tempera.size(); i++) {
     const double cur_z = (i + 0.5) * param.grid_leng.z;
-    fprintf(fp[LOCAL_VAL], "%f %.10g %.10g %.10g %.10g %.10g\n", cur_z, loc_tempera[i], loc_dense[i], loc_vel[i].x, loc_vel[i].y, loc_vel[i].z);
+    fprintf(fp[LOCAL_VAL], "%f %.15g %.15g %.15g %.15g %.15g\n", cur_z, loc_tempera[i], loc_dense[i], loc_vel[i].x, loc_vel[i].y, loc_vel[i].z);
   }
 }
 
-void Observer::DumpTranject(const dpdsystem& sDPD, const ChemInfo& cheminfo, const Parameter& param)
-{
-  DumpPrtclConfig(sDPD, cheminfo, param, fp[PTCL_CONFIG]);
+void Observer::DumpTranject(const dpdsystem& sDPD, const ChemInfo& cheminfo) {
+  DumpPrtclConfig(sDPD, cheminfo, fp[PTCL_CONFIG]);
 }
 
-void Observer::DumpFinalConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const Parameter& param)
-{
-  DumpPrtclConfig(sDPD, cheminfo, param, fp[FINAL_CONFIG]);
+void Observer::DumpFinalConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo) {
+  DumpPrtclConfig(sDPD, cheminfo, fp[FINAL_CONFIG]);
 }
 
 void Observer::DumpMembHeight(const dpdsystem& sDPD, const Parameter& param, const int time) {
-  CalcMembraneHeight(sDPD, param);
+  CalcMembraneHeight(sDPD);
   fprintf(fp[HEIGHT_DIST] , "%f ", time * param.dt);
-  for(size_t i = 0; i < hei.size(); i++) fprintf(fp[HEIGHT_DIST], "%.10g ", hei[i]);
+  for(size_t i = 0; i < hei.size(); i++) fprintf(fp[HEIGHT_DIST], "%.15g ", hei[i]);
   fprintf(fp[HEIGHT_DIST], "\n");
 }

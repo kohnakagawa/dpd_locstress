@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 
   dpdsystem dpdsys(param);
   const int all_time = 100, time_step_mic = 100, time_step_mac = 100, time_step_vt = 100, chem_beg = 1000;
-  dpdsys.Execute(all_time,time_step_mic,time_step_mac,time_step_vt,chem_beg);
+  dpdsys.Execute(all_time, time_step_mic, time_step_mac, time_step_vt, chem_beg);
 
   const std::string fname = std::string(argv[1]) + "/all_param.txt";
   std::ofstream fout(fname.c_str());

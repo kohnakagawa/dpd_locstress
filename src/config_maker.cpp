@@ -110,9 +110,9 @@ class ConfigMaker {
     }
   }
 
-  void MakeSphCap(int& added_num, const Parameter& param) {
-    // not implemented yet.
-  }
+  // void MakeSphCap(int& added_num, const Parameter& param) {
+  //   // not implemented yet.
+  // }
 
   template<class prng_gen>
   void MakeRandom(prng_gen& prng,
@@ -122,8 +122,9 @@ class ConfigMaker {
     int phil_idx = 0, phob_idx = param.hN;
     for (int i = 0; i < param.ampN; i++) {
       const auto base	= GenRandVec(prng, uniform, param.L);
-      auto nv		= Genrandvec(prng, uniform, double3(1.0, 1.0, 1.0));
-      nv		= nv / std::sqrt(nv * nv);
+      auto nv		= GenRandVec(prng, uniform, double3(1.0, 1.0, 1.0));
+      const auto norm   = std::sqrt(nv * nv);
+      nv /= norm;
       SetAmphilPartPos<0, Parameter::REAC_PART>(base, nv, param, phil_idx, phob_idx);
       SetAmphilPartPos<Parameter::REAC_PART, Parameter::TAIL_PART>(base, nv, param, phil_idx, phob_idx);
       added_num += Parameter::ALL_UNIT_N;
@@ -137,13 +138,13 @@ class ConfigMaker {
 			  int& added_num,
 			  const Parameter& param) {
     const double3 org = std::accumulate(ptcl_buffer_.cbegin(), ptcl_buffer_.cbegin() + added_num, param.L,
-					[](const PtclBuffer& sum, const PtclBuffer& val) {return (sum.pos < val.pos) ? sum : val;});
+					[](const double3& sum, const PtclBuffer& val) {return (sum < val.pos) ? sum : val.pos;});
     const double3 top = std::accumulate(ptcl_buffer_.cbegin(), ptcl_buffer_.cbegin() + added_num, double3(0.0, 0.0, 0.0),
-					[](const PtclBuffer& sum, const PtclBuffer& val) {return (sum.pos > val.pos) ? sum : val;});
+					[](const double3& sum, const PtclBuffer& val) {return (sum > val.pos) ? sum : val.pos;});
     
     int water_idx = param.hN + param.bN;
     while (water_idx < Parameter::SYS_SIZE) {
-      const auto base = Genrandvec(prng, uniform, param.L);
+      const auto base = GenRandVec(prng, uniform, param.L);
       if (base > org && base < top) {
 	SetWaterPos(base, water_idx);
 	added_num++;
@@ -202,11 +203,11 @@ class ConfigMaker {
     
     // temperature check
     double3 vel2_sum = std::accumulate(ptcl_buffer_.cbegin(), ptcl_buffer_.cend(), double3(0.0, 0.0, 0.0),
-				      [](const double3& sum, const PtclBuffer& val) {
+				       [](const double3& sum, const PtclBuffer& val) {
 					 return double3(sum.x + val.vel.x * val.vel.x,
 							sum.y + val.vel.y * val.vel.y,
 							sum.z + val.vel.y * val.vel.z);
-				      });
+				       });
     vel2_sum /= Parameter::SYS_SIZE;
     std::cerr << "Temperature = " << vel2_sum << std::endl;
   }
@@ -228,7 +229,7 @@ public:
     std::normal_distribution<> normal(0.0, std::sqrt(param.tempera));
     std::cout << "Now create particle configuration.\n";
     std::cout << "Info:\n";
-    std::cout << "# of particles is " << Parameter::SYS_SIZE << std::endl;
+    param.DumpAllParam(std::cout);
     
     std::cout << "Thermal velocity generation.\n";
     GenThermalVeloc(mt_rnd, normal);
@@ -257,4 +258,6 @@ int main(int argc, char* argv[]) {
   
   ConfigMaker cmaker(argv[1]);
   cmaker.GenParticles(param);
+
+  std::cout << "Particle configuration is generaged at " << argv[1] << std::endl;
 }

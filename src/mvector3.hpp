@@ -12,76 +12,80 @@
 //T should be double or float
 template<typename T>
 struct vector3{
-  T x,y,z;
+  T x, y, z;
   
   //constructors
   INLINE vector3<T>() : x(0.0), y(0.0), z(0.0) {}
   INLINE vector3<T>(const vector3<T> &rhs) : x(rhs.x), y(rhs.y), z(rhs.z) {}
-  INLINE explicit vector3<T>(const T &r) : x(r), y(r), z(r){}
-  INLINE explicit vector3<T>(const T *p){
+  INLINE explicit vector3<T>(const T &r) : x(r), y(r), z(r) {}
+  INLINE explicit vector3<T>(const T *p) {
     x = p[0]; y = p[1]; z = p[2];
   }
-  INLINE vector3<T>(const T &x_,const T &y_,const T &z_) : x(x_), y(y_), z(z_){}
+  INLINE vector3<T>(const T x_, const T y_, const T z_) : x(x_), y(y_), z(z_) {}
  
-  //operators
-  INLINE const vector3<T> operator+(const vector3<T>& obj) const {
-    const vector3<T> ret(x+obj.x,y+obj.y,z+obj.z);
-    return ret;
+  INLINE const vector3<T>& operator = (const vector3<T>& obj) {
+    x = obj.x; y = obj.y; z = obj.z;
+    return (*this);
   }
-  INLINE const vector3<T> operator-(const vector3<T>& obj) const {
-    const vector3<T> ret(x-obj.x,y-obj.y,z-obj.z);
-    return ret;
+  INLINE const vector3<T>& operator = (const T s) {
+    x = y = z = s;
+    return (*this);
   }
-  INLINE const vector3<T>& operator+=(const vector3<T>& obj){
+  INLINE const vector3<T> operator + (const vector3<T>& obj) const {
+    return vector3<T>(x + obj.x, y + obj.y, z + obj.z);
+  }
+  INLINE const vector3<T> operator - (const vector3<T>& obj) const {
+    return vector3<T>(x - obj.x, y - obj.y, z - obj.z);
+  }
+  INLINE const vector3<T>& operator += (const vector3<T>& obj) {
     x += obj.x; y += obj.y; z += obj.z;
     return *this;
   }
-  INLINE const vector3<T>& operator-=(const vector3<T>& obj){
+  INLINE const vector3<T>& operator -= (const vector3<T>& obj) {
     x -= obj.x; y -= obj.y; z -= obj.z;
     return *this;
   }
-  INLINE const vector3<T> operator*(const T& cf) const {
-    const vector3<T> ret(x*cf,y*cf,z*cf);
-    return ret;
+  INLINE const vector3<T> operator * (const T cf) const {
+    return vector3<T>(x * cf, y * cf,z * cf);
   }
-  INLINE const T operator*(const vector3<T>& obj) const {
-    const T ret = x*obj.x + y*obj.y + z*obj.z;
-    return ret;
+  INLINE const T operator * (const vector3<T>& obj) const {
+    return x * obj.x + y * obj.y + z * obj.z;
   }
-  INLINE friend const vector3<T> operator*(const T& cf,const vector3<T>& obj) {
-    const vector3<T> ret(obj.x*cf,obj.y*cf,obj.z*cf);
-    return ret;
+  INLINE friend const vector3<T> operator * (const T cf, const vector3<T>& obj) {
+    return vector3<T>(obj.x * cf, obj.y * cf, obj.z * cf);
   }
-  INLINE const vector3<T>& operator*=(const T& cf){
+  INLINE const vector3<T>& operator *= (const T cf) {
     x *= cf; y *= cf; z *= cf;
     return *this;
   }
-  INLINE const vector3<T>& operator/=(const T& cf){
+  INLINE const vector3<T>& operator /= (const T cf) {
     x /= cf; y /= cf; z /= cf;
     return *this;
   }
-  INLINE friend const vector3<T> operator/(const T& cf,const vector3<T>& obj) {
-    const vector3<T> ret(cf/obj.x,cf/obj.y,cf/obj.z);
-    return ret;
+  INLINE friend const vector3<T> operator / (const T cf, const vector3<T>& obj) {
+    return vector3<T>(cf / obj.x, cf / obj.y, cf / obj.z);
   }
-  INLINE T &operator [](int i){
+  
+  
+  INLINE T &operator [] (const int i) {
     return (&x)[i];
   }
-  INLINE bool operator<(const vector3<T>& rhs)const{
-    const bool ret = (x < rhs.x) && (y < rhs.y) && (z < rhs.z);
-    return ret;
+
+  INLINE const T& operator [] (const int i) const {
+    return (&x)[i];
   }
-  INLINE bool operator>(const vector3<T>& rhs)const{
-    const bool ret = (x > rhs.x) && (y > rhs.y) && (z > rhs.z);
-    return ret;
+  
+  INLINE bool operator < (const vector3<T>& rhs) const {
+    return (x < rhs.x) && (y < rhs.y) && (z < rhs.z);
   }
-  INLINE bool operator<=(const vector3<T>& rhs)const{
-    const bool ret = (x <= rhs.x) && (y <= rhs.y) && (z <= rhs.z);
-    return ret;
+  INLINE bool operator > (const vector3<T>& rhs) const {
+    return (x > rhs.x) && (y > rhs.y) && (z > rhs.z);
   }
-  INLINE bool operator>=(const vector3<T>& rhs)const{
-    const bool ret = (x >= rhs.x) && (y >= rhs.y) && (z >= rhs.z);
-    return ret;
+  INLINE bool operator <= (const vector3<T>& rhs) const {
+    return (x <= rhs.x) && (y <= rhs.y) && (z <= rhs.z);
+  }
+  INLINE bool operator >= (const vector3<T>& rhs) const {
+    return (x >= rhs.x) && (y >= rhs.y) && (z >= rhs.z);
   }
   
   //inverse square root
@@ -128,14 +132,19 @@ struct vector3{
 #ifndef __CUDACC__
   INLINE bool isfinite3() const {
     const bool ret = (std::isfinite(x)) && (std::isfinite(y)) && (std::isfinite(z));
-    if(!ret) std::cout << x << " " << y << " " << z << std::endl;
+    if (!ret) std::cout << x << " " << y << " " << z << std::endl;
     return ret;
   }
 #endif
 
-  friend std::ostream& operator<<(std::ostream& os, const vector3& dvec3){
+  friend std::ostream& operator << (std::ostream& os, const vector3& dvec3) {
     os << dvec3.x << " " << dvec3.y << " " << dvec3.z;
     return os;
+  }
+
+  friend std::istream& operator >> (std::istream& is, vector3& dvec3) {
+    is >> dvec3.x; is >> dvec3.y; is >> dvec3.z;
+    return is;
   }
     
 };

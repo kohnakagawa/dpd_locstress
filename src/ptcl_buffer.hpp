@@ -5,7 +5,7 @@
 #include <limits>
 #include "mvector3.hpp"
 
-class PtclBuffer {
+struct PtclBuffer {
   double3 pos, vel;
   int prop;
   bool p_chem, l_chem;

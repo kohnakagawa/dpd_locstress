@@ -97,7 +97,7 @@ struct ChemInfo{
 
 #define CHECK_EQUATION(eqa, val)					\
   do {									\
-    if (!eqa) {								\
+    if (!(eqa)) {							\
       std::cerr << #eqa << " is not satisfied.\n";			\
       std::cerr << #val << " = " << val << std::endl;			\
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;		\

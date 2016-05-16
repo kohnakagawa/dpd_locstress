@@ -52,24 +52,22 @@ class Observer {
   int cut_grid = -1;
   std::vector<double> hei; std::vector<int> hei_elem;
   
-  int GenHash2d(const double3& r, const Parameter& param) {
+  int GenHash2d(const double3& r) {
     int ix = static_cast<int>(r.x * i_cut_r);
     int iz = static_cast<int>(r.z * i_cut_r);
-    
-    if(ix == cut_grid) ix--;
-    if(iz == cut_grid) iz--;
-
+    if (ix == cut_grid) ix--;
+    if (iz == cut_grid) iz--;
     return iz + cut_grid * ix;
   }
   
   double	CalcKinTempera(const dpdsystem& sDPD);
-  double	CalcDiffs(const dpdsystem& sDPD, const Parameter& param);
+  double	CalcDiffs(const dpdsystem& sDPD);
   double	CalcGyration(const dpdsystem& sDPD,const Parameter& param);
   double	CalcThickness(const dpdsystem& sDPD,const Parameter& param);
   double	CalcOrientOrder(const dpdsystem& sDPD,const Parameter& param);  
-  void          CalcMembraneHeight(const dpdsystem& sDPD, const Parameter& param);
+  void          CalcMembraneHeight(const dpdsystem& sDPD);
   
-  void DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const Parameter& param, FILE* fp);
+  void DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, FILE* fp);
   
 public:
   explicit Observer(const Parameter& param);
@@ -79,7 +77,7 @@ public:
   void DumpPressure(const dpdsystem& sDPD, const Parameter& param, const double3& vil);
   void DumpConfigTempera(const double configT);
   void DumpLocalVal(const dpdsystem &sDPD, const Parameter& param);
-  void DumpTranject(const dpdsystem& sDPD, const ChemInfo& cheminfo, const Parameter& param);
-  void DumpFinalConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const Parameter& param);
+  void DumpTranject(const dpdsystem& sDPD, const ChemInfo& cheminfo);
+  void DumpFinalConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo);
   void DumpMembHeight(const dpdsystem& sDPD, const Parameter& param, const int time);
 };

@@ -2,7 +2,6 @@
 #include "chem_manager.hpp"
 #include "allocate.hpp"
 #include "observer.hpp"
-#include "initializer.hpp"
 #include "bucket_sorter.hpp"
 #include "force_calculator.hpp"
 #include "rng.hpp"
@@ -198,7 +197,83 @@ void dpdsystem::SetPosresPrtcl() {
 }
 #endif
 
+void dpdsystem::ReadParticleConfig() {
+  std::string fname = p_param->cur_dir + "/init_config.xyz";
+  std::ifstream fin(fname.c_str());
+  CHECK_FILE_OPEN(fin);
+
+  int id = 0, w_n = 0, h_n = 0, b_n = 0;
+  char buf_type = '\0';
+  double3 buf_p(0.0), buf_v(0.0);
+  bool buf_p_chem = false, buf_l_chem = false;
+  int buf_l_unit = -1, buf_l_idx = -1, buf_p_idx = -1, buf_prop = -1;
+  
+  while (true) {
+    fin >> buf_type >> buf_p.x >> buf_p.y >> buf_p.z >> buf_v.x >> buf_v.y >> buf_v.z >> buf_prop >> buf_p_chem
+	>> buf_l_chem >> buf_l_unit >> buf_l_idx >> buf_p_idx;
+    if (fin.eof()) break;
+    
+    pr[id]			= buf_p;
+    pv[id]			= buf_v;
+    prop[id]			= static_cast<par_prop>(buf_prop);
+    cheminfo.prtcl_chem[id]	= buf_p_chem;
+    cheminfo.lipid_idx[id]	= buf_l_idx;
+    cheminfo.lipid_unit[id]	= buf_l_unit;
+    cheminfo.part_idx[id]	= buf_p_idx;
+    
+    id++;
+
+    if (buf_prop == Water ) w_n++;
+    if (buf_prop == Hyphil) h_n++;
+    if (buf_prop == Hyphob) b_n++;
+    if (id > Parameter::SYS_SIZE) {
+      std::cerr << "# of particle is larger than SYS_SIZE \n";
+      std::exit(1);
+    }
+  }
+  
+  if (id != Parameter::SYS_SIZE) {
+    std::cerr << "# of particle is smaller than SYS_SIZE \n";
+    std::exit(1);
+  }
+
+  CHECK_EQUATION(w_n == p_param->wN, w_n);
+  CHECK_EQUATION(h_n == p_param->hN, h_n);
+  CHECK_EQUATION(b_n == p_param->bN, b_n);  
+}
+
+void dpdsystem::SetBondedParameter() {
+  for (int i = 0; i < p_param->ampN; i++) cheminfo.lipid_chem[i] = false;
+  
+  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+    const int l_unit = cheminfo.lipid_unit[i];
+    const int l_idx  = cheminfo.lipid_idx[i];
+    if ((l_unit == Parameter::REAC_PART) || (l_unit == Parameter::REAC_PART - 1)) {
+      const bool prtcl_chem = cheminfo.prtcl_chem[i];
+      
+      if (prtcl_chem) {
+	if (l_idx >= 0 && l_idx < p_param->ampN) {
+	  cheminfo.lipid_chem[l_idx] = true;
+	} else {
+	  std::cerr << "lipid idx is out-of-range. \n";
+	  std::cerr << "lipid idx: " << l_idx << std::endl;
+	  std::exit(1);
+	}
+      }
+    }
+  }
+}
+
 void dpdsystem::CheckInitialized() const {
+  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+    const int l_unit = cheminfo.lipid_unit[i];
+    const int l_idx  = cheminfo.lipid_idx[i];
+    const bool prtcl_chem = cheminfo.prtcl_chem[i];
+    if ((l_unit == Parameter::REAC_PART) || (l_unit == Parameter::REAC_PART - 1)) {
+      CHECK_EQUATION(cheminfo.lipid_chem[l_idx] == prtcl_chem, cheminfo.lipid_chem[l_idx]);
+    }
+  }
+  
   const double3 zerov(0.0);
   for (int i = 0; i < Parameter::SYS_SIZE; i++) {
     CHECK_EQUATION(pr[i] <= p_param->L, pr[i]);
@@ -227,39 +302,48 @@ void dpdsystem::CheckInitialized() const {
     CHECK_EQUATION(prop[cheminfo.lip_elem_idx[i]] != Water, prop[cheminfo.lip_elem_idx[i]]);
 }
 
-void dpdsystem::FirstStep(B_sorter& bsorter, ChemManager& chemmanage, F_calculator& f_calc, RNG& rng) {
+void dpdsystem::GenParticles(ChemManager& chemmanage) {
+  ReadParticleConfig();
+  SetBondedParameter();
+  chemmanage.RegistLipidIdx(cheminfo);
+}
+
+void dpdsystem::FirstStep(B_sorter& bsorter, ChemManager& chemmanage, F_calculator& f_calc) {
   bsorter.MkPrtclIdx(pr, *p_param, celllist);
   bsorter.BucketSort(*this, cheminfo, *p_param, celllist);
-  chemmanage.RegistLipidIdx(*p_param, cheminfo);
+  chemmanage.RegistLipidIdx(cheminfo);
   bsorter.SetPrtclCellIdxNoSTL(celllist, *p_param);
   f_calc.AddConservForce(pr, prop, force, celllist, *p_param, cheminfo);
 }
 
-void dpdsystem::Execute(const int all_time, const int time_step_mic, const int time_step_mac, const int time_step_vt, const int chem_beg) {
+void dpdsystem::Execute(const int all_time,
+			const int time_step_mic,
+			const int time_step_mac,
+			const int time_step_vt,
+			const int chem_beg) {
   ChemManager chemmanage;
   F_calculator f_calc(*p_param);
   B_sorter bsorter(*p_param);
   RNG rng(1234, omp_get_max_threads());
-  //RNG rng( (size_t)time(NULL), omp_get_max_threads() );
+  // RNG rng( (size_t)time(NULL), omp_get_max_threads());
 
-  p_initializer->GenParticles(*this, chemmanage, cheminfo, *p_param, rng);
+  GenParticles(chemmanage);
+  CheckInitialized();
 #ifdef ADD_POSRES
   SetPosresPrtcl();
 #endif
-
-  CheckInitialized();
   
-  FirstStep(bsorter, chemmanage, f_calc, rng);
+  FirstStep(bsorter, chemmanage, f_calc);
   for (int time = 0; time < all_time; time++) {
     //std::cout << "time" <<  time << std::endl;
-    if (time == Parameter::EQUIL_TIME) AdjustMomentum();
+    if (time == Parameter::EQUIL_TIME) RemoveCMDrift();
 
     VelocVerlet1();
 
     bsorter.MkPrtclIdx(pr, *p_param, celllist);
     if (time % B_sorter::SORT_FREQ == 0) {
       bsorter.BucketSort(*this,cheminfo,*p_param,celllist); 
-      chemmanage.RegistLipidIdx(*p_param,cheminfo);
+      chemmanage.RegistLipidIdx(cheminfo);
     }
     bsorter.SetPrtclCellIdxNoSTL(celllist,*p_param);
 
@@ -277,31 +361,28 @@ void dpdsystem::Execute(const int all_time, const int time_step_mic, const int t
 #endif
 
 #ifdef DEBUG
-    bsorter.CheckSorted(*this,*p_param,celllist);
-    bsorter.CheckNearList(*this,*p_param);
+    bsorter.CheckSorted(*this, *p_param, celllist);
+    bsorter.CheckNearList(*this, *p_param);
 #endif
 
 #ifdef CHEM_MODE
-    if(time > chem_beg) chemmanage.ChemEvent(*p_param,cheminfo,rng);
-    chemmanage.ClearNearInfo(*p_param,cheminfo);
+    if (time > chem_beg) chemmanage.ChemEvent(*p_param,cheminfo,rng);
+    chemmanage.ClearNearInfo(cheminfo);
 #endif
 
     VelocVerlet2();
 
-    if (time % Parameter::COL_FREQ == 0)
+    if (time % Parameter::COL_FREQ == 0) {
       f_calc.AddDisspRandom(pr, pv, prop, celllist, *p_param, rng);
+    }
 
     if (time % time_step_mic == 0) {
-      p_observer->DumpTranject(*this, cheminfo, *p_param);
+      p_observer->DumpTranject(*this, cheminfo);
     }
     
     if (time % time_step_mac == 0) {
       p_observer->DumpMacroVal(*this, *p_param);
-      p_observer->DumpEmbTailInfo(*this, cheminfo, *p_param, time);
-
-#ifdef Y_REFLECT_BOUND
       p_observer->DumpLocalVal(*this, *p_param);
-#endif
       
 #ifdef CALC_HEIGHT
       p_observer->DumpMembHeight(*this, *p_param, time);
@@ -309,14 +390,11 @@ void dpdsystem::Execute(const int all_time, const int time_step_mic, const int t
 
     }
     if (time % time_step_vt == 0) {
-      p_observer->DumpPressure(*this, *p_param, Vir);
-      p_observer->DumpConfigTempera(configT);
-      
-      UpdateObserverConfigT(f_calc.DumpConfigT(force) );
+      p_observer->DumpPressure(*this, *p_param, f_calc.DumpVirial());
+      p_observer->DumpConfigTempera(f_calc.DumpConfigT(force));
     }
   } //end of main loop
-  
-  //dump final configuration for restart simulation.
-  p_observer->DumpFinalConfig(*this, cheminfo, *p_param);
+
+  p_observer->DumpFinalConfig(*this, cheminfo);
 }
 

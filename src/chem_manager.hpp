@@ -17,17 +17,17 @@ class ChemManager{
   }
 
   void DetChemReac(const Parameter& param, ChemInfo& cheminfo, RNG& rng);
-  void ReSearchNearest(const Parameter& param, ChemInfo& cheminfo);
+  void ReSearchNearest(ChemInfo& cheminfo);
   
 public:
   INLINE void ChemEvent(const Parameter& param, ChemInfo& cheminfo, RNG& rng){
-    ReSearchNearest(param,cheminfo);
+    ReSearchNearest(cheminfo);
     DetChemReac(param,cheminfo,rng);
   }
-  void ClearNearInfo(const Parameter& param, ChemInfo& cheminfo);
+  void ClearNearInfo(ChemInfo& cheminfo);
   
   //NOTE:this function should be called after bucket sort
-  void RegistLipidIdx(const Parameter& param, ChemInfo& cheminfo);
+  void RegistLipidIdx(ChemInfo& cheminfo);
 };
 
 #undef INLINE

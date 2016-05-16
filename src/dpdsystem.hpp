@@ -61,9 +61,12 @@ class dpdsystem {
 #ifdef ADD_POSRES
   void     SetPosresPrtcl();
 #endif
+  void     ReadParticleConfig();
+  void     SetBondedParameter();
   void     CheckInitialized() const;
-
-  void     FirstStep(B_sorter&, ChemManager&, F_calculator&, RNG&);
+  void     GenParticles(ChemManager& chemmanage);
+  
+  void     FirstStep(B_sorter&, ChemManager&, F_calculator&);
 public:
   //particle data
   double3	*pr = nullptr, *pv = nullptr, *delta_sumr = nullptr, *pv_bef = nullptr, *force = nullptr, *force_bef = nullptr;

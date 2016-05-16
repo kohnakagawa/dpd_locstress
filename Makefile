@@ -1,83 +1,50 @@
-#CXX = g++
-CXX = icpc
-#CXX = mpiFCCpx
-#CXX = FCCpx
-
-ifeq ($(CXX),icpc)
-MER_FLAGS   = -DDSFMT_MEXP=1279 -DHAVE_SSE2 
-#VEC_REPORT  = -vec_report3
-endif
-ifeq ($(CXX),g++)
-MER_FLAGS   = -DDSFMT_MEXP=1279 -msse2  -DHAVE_SSE2 
-endif
-ifeq ($(CXX),FCCpx)
-MER_FLAGS   = -DDSFMT_MEXP=1279
-endif
-ifeq ($(CXX),mpiFCCpx)
-MER_FLAGS   = -DDSFMT_MEXP=1279
-endif
+CXX = g++
+# CXX = icpc
 
 EIGEN_FLAGS = -DEIGEN_NO_DEBUG
 
 ifeq ($(CXX),icpc)
 OPENMP = -openmp
 endif
-ifeq ($(CXX),mpiFCCpx)
-OPENMP = -Kopenmp
-endif
-ifeq ($(CXX),FCCpx)
-OPENMP = -Kopenmp
-endif
 ifeq ($(CXX),g++)
 OPENMP = -fopenmp
 endif
 
-DEBUG = -O0 -Wall -Wnon-virtual-dtor -Woverloaded-virtual -g -DDEBUG
-PROFILE = -pg -O2
+DEBUG = -O0 -Wall -Wextra -Wnon-virtual-dtor -Woverloaded-virtual -g -DDEBUG
 
 ifeq ($(CXX),icpc)
 RELEASE = -O3 -xHOST -ipo -no-prec-div
 endif
-ifeq ($(CXX),mpiFCCpx)
-RELEASE = -Kfast -Nsrc
-endif
-ifeq ($(CXX),FCCpx)
-RELEASE = -Kfast -Nsrc
-endif
 ifeq ($(CXX),g++)
-RELEASE = -O3 
+RELEASE = -O3 -ffast-math -funroll-loops
 endif
 
 STDCPP11 = -std=c++11
 
-CFLAGS = $(DEBUG)
-#CFLAGS = $(RELEASE)
-#CFLAGS = $(PROFILE)
-CFLAGS += $(MER_FLAGS)
-CFLAGS += $(OPENMP)
-CFLAGS += $(EIGEN_FLAGS)
-CFLAGS += $(STDCPP11)
+CXXFLAGS = $(DEBUG)
+# CXXFLAGS = $(RELEASE)
 
-#LIBRARY = -lstdc++ #This line should be added using intel compiler option "-fast"
-#LIBRARY += -lmpi   #This line should be added using SYSTEM B MPI application
+CXXFLAGS += $(OPENMP)
+CXXFLAGS += $(EIGEN_FLAGS)
+CXXFLAGS += $(STDCPP11)
 
-OBJECTS = main.o bucket_sorter.o dSFMT.o dpdsystem.o force_calculator.o initializer.o observer.o time_evolver.o chem_manager.o
+OBJECTS = main.o bucket_sorter.o dpdsystem.o force_calculator.o observer.o time_evolver.o chem_manager.o
+OBJECTS_DPD = $(addprefix ./src/,$(OBJECTS))
 
-#OBJECTS = main.o bucket_sorter.o dpdsystem.o force_calculator.o initializer.o observer.o time_evolver.o chem_manager.o
+TARGET = shald_dpd.out config_maker.out
 
-TARGET = shald_dpd.out
-all:$(TARGET)
+all : $(TARGET)
 
-.SUFFIXES:
-.SUFFIXES: .cpp .o
+.SUFFIXES :
+.SUFFIXES : .cpp .o
 .cpp.o:
-	$(CXX) $(CFLAGS) -c $< $(LIBRARY) -o $@
-.SUFFIXES: .c .o
-.c.o:
-	$(CXX) $(CFLAGS) -c $< $(LIBRARY) -o $@
+	$(CXX) $(CXXFLAGS) -c $< $(LIBRARY) -o $@
 
-$(TARGET): $(OBJECTS)
-	$(CXX) $(CFLAGS) $(VEC_REPORT) $(OBJECTS) $(LIBRARY) -o $@
+shald_dpd.out : $(OBJECTS_DPD)
+	$(CXX) $(CXXFLAGS) $(OBJECTS_DPD) $(LIBRARY) -o $@
+
+config_maker.out : ./src/config_maker.cpp
+	$(CXX) $(CXXFLAGS) $< $(LIBRARY) -o $@
 
 clean:
-	rm -f $(OBJECTS) $(TARGET) core.* *~
+	rm -f $(OBJECTS_DPD) $(TARGET) core.* *~
