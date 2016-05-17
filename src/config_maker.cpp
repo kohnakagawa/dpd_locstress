@@ -327,7 +327,7 @@ class ConfigMaker {
   }
   
 public:
-  ConfigMaker(const char* cur_dir) {
+  explicit ConfigMaker(const char* cur_dir) {
     cur_dir_ = cur_dir;
   }
 

@@ -11,7 +11,7 @@ OPENMP = -fopenmp
 endif
 
 DEBUG = -O0 -g -DDEBUG
-WARNINGS = -Wall -Wextra -Wnon-virtual-dtor -Woverloaded-virtual 
+WARNINGS = -Wall -Wextra # -Wnon-virtual-dtor -Woverloaded-virtual 
 
 ifeq ($(CXX),icpc)
 RELEASE = -O3 -ipo -no-prec-div
@@ -30,29 +30,40 @@ CXXFLAGS += $(OPENMP)
 CXXFLAGS += $(EIGEN_FLAGS)
 CXXFLAGS += $(STDCPP11)
 
-OBJECTS = main.o bucket_sorter.o dpdsystem.o force_calculator.o observer.o time_evolver.o chem_manager.o
+OBJECTS = main bucket_sorter dpdsystem force_calculator observer time_evolver chem_manager
 OBJECTS_DPD = $(addprefix ./src/,$(OBJECTS))
+OBJECTS_DPD_SSE4 = $(addsuffix .sse4_o,$(OBJECTS_DPD))
+OBJECTS_DPD_AVX  = $(addsuffix .avx_o,$(OBJECTS_DPD))
+OBJECTS_DPD_AVX2 = $(addsuffix .avx2_o,$(OBJECTS_DPD))
 
 TARGET = shald_dpd_sse4.out shald_dpd_avx.out shald_dpd_avx2.out config_maker.out
 
 all : $(TARGET)
 
 .SUFFIXES :
-.SUFFIXES : .cpp .o
-.cpp.o:
-	$(CXX) $(CXXFLAGS) -c $< $(LIBRARY) -o $@
+.SUFFIXES : .cpp .sse4_o
+.cpp.sse4_o:
+	$(CXX) $(CXXFLAGS) -xSSE4.2 -c $< $(LIBRARY) -o $@
 
-shald_dpd_sse4.out : $(OBJECTS_DPD)
-	$(CXX) $(CXXFLAGS) -xSSE4.2 $(OBJECTS_DPD) $(LIBRARY) -o $@
+.SUFFIXES : .cpp .avx_o
+.cpp.avx_o:
+	$(CXX) $(CXXFLAGS) -xAVX -c $< $(LIBRARY) -o $@
 
-shald_dpd_avx.out : $(OBJECTS_DPD)
-	$(CXX) $(CXXFLAGS) -xAVX $(OBJECTS_DPD) $(LIBRARY) -o $@
+.SUFFIXES : .cpp .avx2_o
+.cpp.avx2_o:
+	$(CXX) $(CXXFLAGS) -xCORE-AVX2 -c $< $(LIBRARY) -o $@
 
-shald_dpd_avx2.out : $(OBJECTS_DPD)
-	$(CXX) $(CXXFLAGS) -xCORE-AVX2 $(OBJECTS_DPD) $(LIBRARY) -o $@
+shald_dpd_sse4.out : $(OBJECTS_DPD_SSE4)
+	$(CXX) $(CXXFLAGS) -xSSE4.2 $(OBJECTS_DPD_SSE4) $(LIBRARY) -o $@
+
+shald_dpd_avx.out : $(OBJECTS_DPD_AVX)
+	$(CXX) $(CXXFLAGS) -xAVX $(OBJECTS_DPD_AVX) $(LIBRARY) -o $@
+
+shald_dpd_avx2.out : $(OBJECTS_DPD_AVX2)
+	$(CXX) $(CXXFLAGS) -xCORE-AVX2 $(OBJECTS_DPD_AVX2) $(LIBRARY) -o $@
 
 config_maker.out : ./src/config_maker.cpp
 	$(CXX) $(CXXFLAGS) $< $(LIBRARY) -o $@
 
 clean:
-	rm -f $(OBJECTS_DPD) $(TARGET) core.* *~ ./src/*~
+	rm -f $(OBJECTS_DPD_SSE4) $(OBJECTS_DPD_AVX) $(OBJECTS_DPD_AVX2) $(TARGET) core.* *~ ./src/*~
