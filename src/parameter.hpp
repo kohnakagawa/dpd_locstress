@@ -198,7 +198,7 @@ public:
   int grid_numb[3] = {-1, -1, -1}, all_grid = -1;
   float coef_prob[3] = {-1.0, -1.0, -1.0}, prob_cutof = -1.0;
 
-  Parameter(char* cur_dir_) {
+  explicit Parameter(char* cur_dir_) {
     cur_dir = cur_dir_;
 
     for (int i = 0; i < 3; i++)
