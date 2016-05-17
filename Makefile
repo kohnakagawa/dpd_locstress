@@ -10,7 +10,8 @@ ifeq ($(CXX),g++)
 OPENMP = -fopenmp
 endif
 
-DEBUG = -O0 -Wall -Wextra -Wnon-virtual-dtor -Woverloaded-virtual -g -DDEBUG
+DEBUG = -O0 -g -DDEBUG
+WARNINGS = -Wall -Wextra -Wnon-virtual-dtor -Woverloaded-virtual 
 
 ifeq ($(CXX),icpc)
 RELEASE = -O3 -xHOST -ipo -no-prec-div
@@ -21,9 +22,10 @@ endif
 
 STDCPP11 = -std=c++11
 
-CXXFLAGS = $(DEBUG)
-# CXXFLAGS = $(RELEASE)
+# CXXFLAGS = $(DEBUG)
+CXXFLAGS = $(RELEASE)
 
+CXXFLAGS += $(WARNINGS)
 CXXFLAGS += $(OPENMP)
 CXXFLAGS += $(EIGEN_FLAGS)
 CXXFLAGS += $(STDCPP11)
@@ -47,4 +49,4 @@ config_maker.out : ./src/config_maker.cpp
 	$(CXX) $(CXXFLAGS) $< $(LIBRARY) -o $@
 
 clean:
-	rm -f $(OBJECTS_DPD) $(TARGET) core.* *~
+	rm -f $(OBJECTS_DPD) $(TARGET) core.* *~ ./src/*~

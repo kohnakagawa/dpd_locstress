@@ -30,7 +30,7 @@
 
 namespace {
   void warning(const int argc) {
-    if (argc != 3) {
+    if (argc != 2) {
       std::cerr << "Usage:\n";
       std::cerr << "argv[1] = target directory\n";
       std::exit(1);
@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
   param.LoadCheck();
 
   dpdsystem dpdsys(param);
+  dpdsys.Initialize();
   const int all_time = 100, time_step_mic = 100, time_step_mac = 100, time_step_vt = 100, chem_beg = 1000;
   dpdsys.Execute(all_time, time_step_mic, time_step_mac, time_step_vt, chem_beg);
 

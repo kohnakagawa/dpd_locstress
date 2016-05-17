@@ -3,8 +3,8 @@
 #include <cassert>
 #include <cstdio>
 
-template <typename T, size_t align>
-T *allocate(size_t num_elem){
+template<typename T, size_t align>
+T* allocate(const size_t num_elem) {
 	void *ptr;
 #ifdef __INTEL_COMPILER
 	ptr = _mm_malloc(num_elem * sizeof(T), align);
@@ -16,8 +16,8 @@ T *allocate(size_t num_elem){
 	return (T *)ptr;
 }
 
-template <typename T, size_t align>
-void deallocate(T *ptr){
+template<typename T, size_t align>
+void deallocate(T *ptr) {
 #ifdef __INTEL_COMPILER
 	_mm_free(ptr);
 #else

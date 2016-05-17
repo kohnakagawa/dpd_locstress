@@ -61,10 +61,10 @@ class dpdsystem {
 #ifdef ADD_POSRES
   void     SetPosresPrtcl();
 #endif
-  void     ReadParticleConfig();
+  int      ReadParticleConfig();
   void     SetBondedParameter();
   void     CheckInitialized() const;
-  void     GenParticles(ChemManager& chemmanage);
+  int      GenParticles(ChemManager& chemmanage);
   
   void     FirstStep(B_sorter&, ChemManager&, F_calculator&);
 public:

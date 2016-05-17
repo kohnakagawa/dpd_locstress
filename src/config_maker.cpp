@@ -10,9 +10,12 @@
 #include "ptcl_buffer.hpp"
 #include "parameter.hpp"
 
+constexpr char PtclBuffer::atom_type[21];
+
 class ConfigMaker {
   const char* cur_dir_ = nullptr;
   std::vector<PtclBuffer> ptcl_buffer_;
+  int h_array_id = 0, t_array_id = 0; 
 
   template<class prng_gen>
   double3 GenRandVec(prng_gen& prng,
@@ -48,6 +51,61 @@ class ConfigMaker {
     std::sort(ptcl_buffer_.begin(), ptcl_buffer_.end(), [](const PtclBuffer& i, const PtclBuffer& j) {return i.hash < j.hash;});
   }
 
+  void SetPartialLipidId(const int lipid_id,
+			 int& base_idx,
+			 const int unit_leng,
+			 const int num_init_bond) {
+    for (int unit = 0; unit < unit_leng; unit++) {
+      ptcl_buffer_[base_idx].l_idx = lipid_id;
+      if (lipid_id < num_init_bond) {
+	ptcl_buffer_[base_idx].l_chem = true;
+	ptcl_buffer_[base_idx].p_chem = true;
+      }
+      base_idx++;
+    }
+  }
+
+  void SetLipidId(const Parameter& param,
+		  const int num_init_bond) {
+    CHECK_EQUATION(num_init_bond <= param.ampN, num_init_bond);
+    // hydrophilic: base_idx[0] hydrophobic: base_idx[1]
+    int base_idx[2] = {0, param.hN};
+  
+    for (int lid = 0; lid < num_init_bond; lid++) {
+      SetPartialLipidId(lid, base_idx[0], Parameter::HYPHIL_N, num_init_bond);
+      SetPartialLipidId(lid, base_idx[1], Parameter::HYPHOB_N, num_init_bond);
+      // setlipidchem(lid, true);
+    }
+
+    if (Parameter::HYPHIL_N >= Parameter::REAC_PART) {
+      if (param.tailN <= param.headN) base_idx[0] += Parameter::REAC_PART * (param.headN - num_init_bond);
+    } else {
+      if (param.tailN <= param.headN) base_idx[1] += (Parameter::REAC_PART - Parameter::HYPHIL_N) * (param.headN - num_init_bond);
+    }
+  
+    for (int lid = num_init_bond; lid < param.ampN; lid++) {
+      if (Parameter::HYPHIL_N >= Parameter::REAC_PART) {
+	if (param.tailN <= param.headN) {
+	  // tail
+	  SetPartialLipidId(lid, base_idx[0], Parameter::HYPHIL_N - Parameter::REAC_PART, num_init_bond);
+	  SetPartialLipidId(lid, base_idx[1], Parameter::HYPHOB_N, num_init_bond);
+	} else {
+	  // head
+	  SetPartialLipidId(lid, base_idx[0], Parameter::REAC_PART, num_init_bond);
+	}
+      } else {
+	if (param.tailN <= param.headN) {
+	  // tail
+	  SetPartialLipidId(lid, base_idx[1], Parameter::TAIL_PART, num_init_bond);
+	} else {
+	  // head
+	  SetPartialLipidId(lid, base_idx[0], Parameter::HYPHIL_N, num_init_bond);
+	  SetPartialLipidId(lid, base_idx[1], Parameter::REAC_PART - Parameter::HYPHIL_N, num_init_bond);
+	}
+      }
+    }
+  }
+
   //NOTE: r = a base position n = the membrane normal vector
   //head case offset = 0                 end = param.head_part_n
   //tail case offset = param.head_part_n end = param.tail_part_n
@@ -56,7 +114,8 @@ class ConfigMaker {
 			const double3& n,
 			const Parameter& param,
 			int& phil_idx,
-			int& phob_idx) {
+			int& phob_idx,
+			const bool is_head) {
     for (int unit = 0; unit < end; unit++) {
       double3 temp_pos = r + (unit + offset) * param.b_leng * n;
       ApplyPBC(temp_pos, param);
@@ -65,12 +124,28 @@ class ConfigMaker {
 	ptcl_buffer_[phil_idx].pos = temp_pos;
 	ptcl_buffer_[phil_idx].prop = Hyphil;
 	ptcl_buffer_[phil_idx].l_unit = unit + offset;
+
+	if (is_head) {
+	  ptcl_buffer_[phil_idx].p_idx = h_array_id / Parameter::REAC_PART;
+	  h_array_id++;
+	} else {
+	  ptcl_buffer_[phil_idx].p_idx = t_array_id / Parameter::TAIL_PART;
+	  t_array_id++;
+	}
 	phil_idx++;
       } else {
 	//hydrophobic part
 	ptcl_buffer_[phob_idx].pos = temp_pos;
 	ptcl_buffer_[phob_idx].prop = Hyphob;
 	ptcl_buffer_[phob_idx].l_unit = unit + offset;
+
+	if (is_head) {
+	  ptcl_buffer_[phob_idx].p_idx = h_array_id / Parameter::REAC_PART;
+	  h_array_id++;
+	} else {
+	  ptcl_buffer_[phob_idx].p_idx = t_array_id / Parameter::TAIL_PART;
+	  t_array_id++;
+	}
 	phob_idx++;
       }
     }
@@ -104,9 +179,10 @@ class ConfigMaker {
       const double sign = flap ? 1.0 : -1.0;
       base[axis] = 0.5 * len[axis] + ((Parameter::ALL_UNIT_N - 1) * Parameter::b_leng + eps) * sign;
       nv[axis]   = -sign;
-      SetAmphilPartPos<0, Parameter::REAC_PART>(base, nv, param, phil_idx, phob_idx);
-      SetAmphilPartPos<Parameter::REAC_PART, Parameter::TAIL_PART>(base, nv, param, phil_idx, phob_idx);
+      SetAmphilPartPos<0, Parameter::REAC_PART>(base, nv, param, phil_idx, phob_idx, true);
+      SetAmphilPartPos<Parameter::REAC_PART, Parameter::TAIL_PART>(base, nv, param, phil_idx, phob_idx, false);
       added_num += Parameter::ALL_UNIT_N;
+      flap ^= true;
     }
   }
 
@@ -125,8 +201,8 @@ class ConfigMaker {
       auto nv		= GenRandVec(prng, uniform, double3(1.0, 1.0, 1.0));
       const auto norm   = std::sqrt(nv * nv);
       nv /= norm;
-      SetAmphilPartPos<0, Parameter::REAC_PART>(base, nv, param, phil_idx, phob_idx);
-      SetAmphilPartPos<Parameter::REAC_PART, Parameter::TAIL_PART>(base, nv, param, phil_idx, phob_idx);
+      SetAmphilPartPos<0, Parameter::REAC_PART>(base, nv, param, phil_idx, phob_idx, true);
+      SetAmphilPartPos<Parameter::REAC_PART, Parameter::TAIL_PART>(base, nv, param, phil_idx, phob_idx, false);
       added_num += Parameter::ALL_UNIT_N;
     }
   }
@@ -136,16 +212,16 @@ class ConfigMaker {
   void FillWaterPtclsRect(prng_gen& prng,
 			  std::uniform_real_distribution<>& uniform,
 			  int& added_num,
+			  const int axis,
 			  const Parameter& param) {
-    const double3 org = std::accumulate(ptcl_buffer_.cbegin(), ptcl_buffer_.cbegin() + added_num, param.L,
-					[](const double3& sum, const PtclBuffer& val) {return (sum < val.pos) ? sum : val.pos;});
-    const double3 top = std::accumulate(ptcl_buffer_.cbegin(), ptcl_buffer_.cbegin() + added_num, double3(0.0, 0.0, 0.0),
-					[](const double3& sum, const PtclBuffer& val) {return (sum > val.pos) ? sum : val.pos;});
-    
+    const double org = std::accumulate(ptcl_buffer_.cbegin(), ptcl_buffer_.cbegin() + added_num, param.L[axis],
+				       [=](const double sum, const PtclBuffer& val) {return (sum < val.pos[axis]) ? sum : val.pos[axis];});
+    const double top = std::accumulate(ptcl_buffer_.cbegin(), ptcl_buffer_.cbegin() + added_num, 0.0,
+				       [=](const double sum, const PtclBuffer& val) {return (sum > val.pos[axis]) ? sum : val.pos[axis];});
     int water_idx = param.hN + param.bN;
     while (water_idx < Parameter::SYS_SIZE) {
       const auto base = GenRandVec(prng, uniform, param.L);
-      if (base > org && base < top) {
+      if (!(base[axis] > org && base[axis] < top)) {
 	SetWaterPos(base, water_idx);
 	added_num++;
       }
@@ -174,14 +250,15 @@ class ConfigMaker {
     std::uniform_real_distribution<> uniform(0.0, 1.0);    
     int added_num = 0;
     if (mode == "Flat") {
-      MakeFlatMembrane(param.L, 1, param.ampN, added_num, prng, uniform, param);
-      FillWaterPtclsRect(prng, uniform, added_num, param);
+      const int axis = 1;
+      MakeFlatMembrane(param.L, axis, param.ampN, added_num, prng, uniform, param);
+      FillWaterPtclsRect(prng, uniform, added_num, axis, param);
     } else if (mode == "Random") {
       MakeRandom(prng, uniform, added_num, param);
       FillWaterPtclsRandom(prng, uniform, added_num, param);
     // } else if (mode == "SphCap") {
     } else {
-      std::cerr << "" << std::endl;
+      std::cerr << "Unknown execution mode.\n";
       std::exit(1);
     }
   }
@@ -193,7 +270,7 @@ class ConfigMaker {
   }
   
   void CheckConfigurationIsValid(const Parameter& param) {
-    // range check
+    // position range check
     for (const auto& ptcl : ptcl_buffer_) {
       for (int j = 0; j < 3; j++) {
 	CHECK_EQUATION(ptcl.pos[j] <= param.L[j], ptcl.pos[j]);
@@ -206,10 +283,47 @@ class ConfigMaker {
 				       [](const double3& sum, const PtclBuffer& val) {
 					 return double3(sum.x + val.vel.x * val.vel.x,
 							sum.y + val.vel.y * val.vel.y,
-							sum.z + val.vel.y * val.vel.z);
+							sum.z + val.vel.z * val.vel.z);
 				       });
     vel2_sum /= Parameter::SYS_SIZE;
     std::cerr << "Temperature = " << vel2_sum << std::endl;
+
+    // topology check
+    int num_in_unit[Parameter::ALL_UNIT_N] = {0};
+    for (const auto& ptcl : ptcl_buffer_) {
+      if (ptcl.prop == Water) {
+	CHECK_EQUATION(ptcl.p_chem == false, ptcl.p_chem);
+	CHECK_EQUATION(ptcl.l_chem == false, ptcl.l_chem);
+	CHECK_EQUATION(ptcl.l_unit == -1, ptcl.l_unit);
+	CHECK_EQUATION(ptcl.l_idx  == -1, ptcl.l_idx);
+	CHECK_EQUATION(ptcl.p_idx  == -1, ptcl.p_idx);
+      } else {
+	CHECK_EQUATION(ptcl.p_chem == true, ptcl.p_chem);
+	CHECK_EQUATION(ptcl.l_chem == true, ptcl.l_chem);
+	CHECK_EQUATION(ptcl.l_unit != -1, ptcl.l_unit);
+	CHECK_EQUATION(ptcl.l_idx  != -1, ptcl.l_idx);
+	CHECK_EQUATION(ptcl.p_idx  != -1, ptcl.p_idx);
+	
+	CHECK_EQUATION(ptcl.l_idx >= 0, ptcl.l_idx);
+	CHECK_EQUATION(ptcl.l_idx < param.ampN, ptcl.l_idx);
+	CHECK_EQUATION(ptcl.p_idx >= 0, ptcl.p_idx);
+	CHECK_EQUATION(ptcl.p_idx < param.ampN, ptcl.p_idx);
+
+	num_in_unit[ptcl.l_unit]++;
+      }
+    }
+    
+    CHECK_EQUATION(h_array_id == param.headN * Parameter::REAC_PART, h_array_id);
+    CHECK_EQUATION(t_array_id == param.tailN * Parameter::TAIL_PART, t_array_id);
+    
+    for (int i = 0; i < Parameter::ALL_UNIT_N; i++)
+      CHECK_EQUATION(num_in_unit[i] == param.ampN, num_in_unit[i]);
+  }
+
+  void WritePtclData(std::ostream& ost) const {
+    ost << ptcl_buffer_.size() << std::endl;
+    ost << "time 0\n";
+    for (const auto& ptcl : ptcl_buffer_) ptcl.WriteOstream(ost);
   }
   
 public:
@@ -230,33 +344,45 @@ public:
     std::cout << "Now create particle configuration.\n";
     std::cout << "Info:\n";
     param.DumpAllParam(std::cout);
+    std::cout << std::endl;
     
     std::cout << "Thermal velocity generation.\n";
     GenThermalVeloc(mt_rnd, normal);
-    std::cout << "Done.\n";
+    std::cout << "Done.\n\n";
     
     std::cout << "Configuration generation.\n";
     GenConfiguration(mt_rnd, param);
-    std::cout << "Done.\n";
+    std::cout << "Done.\n\n";
+
+    std::cout << "Set lipid id.\n";
+    SetLipidId(param, param.ampN);
+    std::cout << "Done.\n\n";
       
     std::cout << "In the end, we check the validity of this particle configuration.\n";
     CheckConfigurationIsValid(param);
-    std::cout << "Done.\n";
+    std::cout << "Done.\n\n";
+
+    std::cout << "Will write configuration to " << fname << ".\n";
+    WritePtclData(fout);
+    std::cout << "Done.\n\n";
   }
 };
 
 int main(int argc, char* argv[]) {
   if (argc != 2) {
     std::cerr << "Usage:\n";
+    std::cerr << "$" << argv[0] << " target directory .\n";
     std::cerr << "argv[1] = target directory name.\n";
     std::exit(1);
   }
+
+  char* const dir_name = argv[1];
   
-  Parameter param(argv[1]);
+  Parameter param(dir_name);
   param.LoadParam();
   param.LoadCheck();
   
-  ConfigMaker cmaker(argv[1]);
+  ConfigMaker cmaker(dir_name);
   cmaker.GenParticles(param);
 
   std::cout << "Particle configuration is generaged at " << argv[1] << std::endl;

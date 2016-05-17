@@ -18,12 +18,8 @@ class Parameter {
     fin >> rho >> tempera >> headN >> tailN >> dt >> grid_leng.x >> L.y >> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof;
     L.z = L.x = std::sqrt(SYS_SIZE / (rho * L.y));
     grid_leng.z = grid_leng.y = grid_leng.x; //ASSUME: grid_leng.x = grid_leng.y = grid_leng.z
-
-    if (headN < tailN) {
-      ampN = headN;
-    } else {
-      ampN = tailN;
-    }
+    
+    ampN = (headN < tailN) ? headN : tailN;
     
     CHECK_FILE_IS_EOF(fin);
 
@@ -44,9 +40,9 @@ class Parameter {
     dt_c      = dt * static_cast<double>(COL_FREQ);
     inv_dt_sq = 1.0 / std::sqrt(dt);
     
-    for(int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
       grid_numb[i] = static_cast<int>(L[i] / grid_leng[i]);
-    for(int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
       grid_leng[i] = L[i] / grid_numb[i];
     
     all_grid = grid_numb[0] * grid_numb[1] * grid_numb[2];
@@ -256,7 +252,9 @@ public:
     PRT_WITH_TAG(all_grid);
     
     ost << "chemical parameters " << std::endl;
-    for (int i = 0; i < 3; i++) PRT_WITH_TAG(coef_prob[i]);
+    PRT_WITH_TAG(coef_prob[0]);
+    PRT_WITH_TAG(coef_prob[1]);
+    PRT_WITH_TAG(coef_prob[2]);
     PRT_WITH_TAG(prob_cutof);
 
     ost << "interactions" << std::endl;
@@ -267,11 +265,11 @@ public:
     for(int i = 0; i < 3; i++)
       ost << "repul " << intrparams.cf_repul[i][0] << " " << intrparams.cf_repul[i][1] << " " << intrparams.cf_repul[i][2] << std::endl;
 
-    ost << "bond " << intrparams.cf_spring << std::endl;
-    ost << "bend " << intrparams.cf_bend   << std::endl;
-    
-    ost << "bond length" << b_leng << std::endl;
-    ost << "inverse chemical reaction length" << ch_leng << std::endl;
+    PRT_WITH_TAG(intrparams.cf_spring);
+    PRT_WITH_TAG(intrparams.cf_bend);
+
+    PRT_WITH_TAG(b_leng);
+    PRT_WITH_TAG(ch_leng);
 
     ost << "bind information" << std::endl;
     PRT_WITH_TAG(binfo.bind_center);

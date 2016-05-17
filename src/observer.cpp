@@ -1,4 +1,6 @@
 #include "observer.hpp"
+#include "bucket_sorter.hpp"
+#include "force_calculator.hpp"
 #include "Eigen/Core"
 #include "Eigen/Eigenvalues"
 #include <algorithm>
@@ -82,7 +84,7 @@ double Observer::CalcGyration(const dpdsystem& sDPD, const Parameter& param) {
     const par_prop prp = t_prp[prtcl_idx];
     
     if (prp != Water) {
-      const int temp_hash = GenHash(pos,param);
+      const int temp_hash = B_sorter::GenHash(pos, param);
       if (temp_hash == bef_hash) {
 	base_pos += pos;
 	baseN++;
@@ -104,7 +106,7 @@ double Observer::CalcGyration(const dpdsystem& sDPD, const Parameter& param) {
     const par_prop prp = t_prp[i];
     if (prp != Water) {
       pos -= base_pos;
-      MinImage(pos, param);
+      F_calculator::MinImage(pos, param);
       cm_pos += pos;
     }
   }
@@ -117,9 +119,9 @@ double Observer::CalcGyration(const dpdsystem& sDPD, const Parameter& param) {
     const par_prop prp = t_prp[i];
     if (prp != Water) {
       pos -= base_pos;
-      MinImage(pos,param);
+      F_calculator::MinImage(pos,param);
       pos -= cm_pos;
-      MinImage(pos,param);
+      F_calculator::MinImage(pos,param);
       for (int j = 0; j < 3; j++)
 	for (int k = j; k < 3; k++)
 	  gyr[j][k] += pos[j] * pos[k];
@@ -154,19 +156,19 @@ double Observer::CalcGyration(const dpdsystem& sDPD, const Parameter& param) {
   return shapeparam;
 }
 
-double Observer::CalcThickness(const dpdsystem& sDPD,const Parameter& param) {
+double Observer::CalcThickness(const dpdsystem& sDPD, const Parameter& param) {
   double up_pos = 0.0; int up_elem = 0;
   double dw_pos = 0.0; int dw_elem = 0;
-  for (int i =0; i<param.ampN; i++) {
+  for (int i = 0; i < param.ampN; i++) {
     const bool chm  = sDPD.GetLipidChemConf(i);
     if (chm) {
-      const int h_idx = sDPD.GetLipidElemIdx(Parameter::ALL_UNIT_N*i        );
-      const int t_idx = sDPD.GetLipidElemIdx(Parameter::ALL_UNIT_N*(i+1) - 1);
+      const int h_idx = sDPD.GetLipidElemIdx(Parameter::ALL_UNIT_N * i          );
+      const int t_idx = sDPD.GetLipidElemIdx(Parameter::ALL_UNIT_N * (i + 1) - 1);
       
       const double3 h_pos = sDPD.pr[h_idx];
       const double3 t_pos = sDPD.pr[t_idx];
       double dry = h_pos.y - t_pos.y;
-      dry -= param.L.y * round(dry * param.iL.y);
+      dry -= param.L.y * std::round(dry * param.iL.y);
       if (dry > 0.0) {
 	up_pos += h_pos.y;
 	up_elem++;
@@ -176,9 +178,9 @@ double Observer::CalcThickness(const dpdsystem& sDPD,const Parameter& param) {
       }
     }
   }
-  
   up_pos /= up_elem;
   dw_pos /= dw_elem;
+  
   return std::fabs(up_pos - dw_pos);
 }
 
@@ -241,11 +243,13 @@ void Observer::DumpConfigTempera(const double configT) {
   fprintf(fp[CONFIG_TEMP], "%.10g \n", configT);
 }
 
-void Observer::DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, FILE* fp) {
+void Observer::DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const int time, FILE* fp) {
   static constexpr char atom_type[] = {
     'O', 'N', 'C', 'S'
   };
-  
+
+  fprintf(fp, "%d\n", Parameter::SYS_SIZE);
+  fprintf(fp, "time %d\n", time);
   for (int i = 0; i < Parameter::SYS_SIZE; i++) {
     const double3 pos   = sDPD.pr[i];
     const double3 vel   = sDPD.pv[i];
@@ -275,7 +279,7 @@ void Observer::DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, 
   }
 }
 
-void Observer::DumpLocalVal(const dpdsystem &sDPD,const Parameter& param) {
+void Observer::DumpLocalVal(const dpdsystem &sDPD, const Parameter& param) {
   const double3* t_r = sDPD.pr;
   const double3* t_v = sDPD.pv;
 
@@ -305,12 +309,12 @@ void Observer::DumpLocalVal(const dpdsystem &sDPD,const Parameter& param) {
   }
 }
 
-void Observer::DumpTranject(const dpdsystem& sDPD, const ChemInfo& cheminfo) {
-  DumpPrtclConfig(sDPD, cheminfo, fp[PTCL_CONFIG]);
+void Observer::DumpTranject(const dpdsystem& sDPD, const ChemInfo& cheminfo, const int time) {
+  DumpPrtclConfig(sDPD, cheminfo, time, fp[PTCL_CONFIG]);
 }
 
-void Observer::DumpFinalConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo) {
-  DumpPrtclConfig(sDPD, cheminfo, fp[FINAL_CONFIG]);
+void Observer::DumpFinalConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const int time) {
+  DumpPrtclConfig(sDPD, cheminfo, time, fp[FINAL_CONFIG]);
 }
 
 void Observer::DumpMembHeight(const dpdsystem& sDPD, const Parameter& param, const int time) {

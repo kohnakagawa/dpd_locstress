@@ -5,31 +5,28 @@
 
 //modes
 //for debug
-//#define NO_THERMO_STAT
-
-//use gpu
-//#define USE_GPU
+// #define NO_THERMO_STAT
 
 //chem
-//#define CHEM_MODE
+// #define CHEM_MODE
 #ifdef CHEM_MODE
 #define INVERSE_CHEM
 #endif
 
 //boundary
-//#define Y_REFLECT_BOUND
+// #define Y_REFLECT_BOUND
 
 //bind potential
-//#define ADD_BIND_POTENT
+// #define ADD_BIND_POTENT
 
 //position restraint
-#define ADD_POSRES
+// #define ADD_POSRES
 
 //
-//#define CALC_HEIGHT
+// #define CALC_HEIGHT
 
 //visc
-#define VISC_KERN_SQRT
+// #define VISC_KERN_SQRT
 
 //structs
 enum par_prop {
@@ -40,11 +37,11 @@ enum par_prop {
 
 struct Interactions {
   //parameters 
-  double                cf_sigma[3][3];
-  double                cf_gamma[3][3];
+  double                cf_sigma[Numprop][Numprop];
+  double                cf_gamma[Numprop][Numprop];
   double                cf_spring;
   double                cf_bend;
-  double                cf_repul[3][3];
+  double                cf_repul[Numprop][Numprop];
 };
 
 struct BindInfo {
@@ -85,14 +82,15 @@ struct ChemInfo{
     }								\
   } while(false)
 
-#define CHECK_FILE_IS_EOF(fin)			\
-  do {						\
-    double buf = 0.0;				\
-    fin >> buf;					\
-    if (!fin.eof()) {				\
-      std::cerr << "is not eof\n.";		\
-      std::exit(1);				\
-    }						\
+#define CHECK_FILE_IS_EOF(fin)					\
+  do {								\
+    double buf = 0.0;						\
+    fin >> buf;							\
+    if (!fin.eof()) {						\
+      std::cerr << "is not eof\n.";				\
+      std::cerr << __FILE__  << " " << __LINE__ << std::endl;	\
+      std::exit(1);						\
+    }								\
   } while(false)
 
 #define CHECK_EQUATION(eqa, val)					\
@@ -114,4 +112,3 @@ inline FILE* xfopen(const char* __restrict filename,
   }
   return f;
 }
-

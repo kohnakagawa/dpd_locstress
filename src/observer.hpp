@@ -24,28 +24,11 @@ class Observer {
   std::vector<double> loc_tempera, loc_dense;
   std::vector<double3> loc_vel, tail_cm_pos;
   
-  void MinImage(double3& a, const Parameter& param) {
-    a.x -= param.L.x * std::round(a.x * param.iL.x);
-    a.y -= param.L.y * std::round(a.y * param.iL.y);
-    a.z -= param.L.z * std::round(a.z * param.iL.z);
-  }
-
-  int GenHash(const double3 &r,const Parameter& param){
-    int i = static_cast<int>(r.x * param.i_grid_leng.x);
-    int j = static_cast<int>(r.y * param.i_grid_leng.y);
-    int k = static_cast<int>(r.z * param.i_grid_leng.z);
-
-    if (i == param.grid_numb[0]) i--;
-    if (j == param.grid_numb[1]) j--;
-    if (k == param.grid_numb[2]) k--;
-  
-    const int hash = i + param.grid_numb[0] * (j + k * param.grid_numb[1]);
-#ifdef DEBUG
-    assert(0 <= hash);
-    assert(hash < param.all_grid);
-#endif
-    return hash;
-  }
+  // void MinImage(double3& a, const Parameter& param) {
+  //   a.x -= param.L.x * std::round(a.x * param.iL.x);
+  //   a.y -= param.L.y * std::round(a.y * param.iL.y);
+  //   a.z -= param.L.z * std::round(a.z * param.iL.z);
+  // }
 
   //ASSUME: membrane is square shape.
   double cut_r = 2.0, i_cut_r = -1.0;
@@ -67,7 +50,7 @@ class Observer {
   double	CalcOrientOrder(const dpdsystem& sDPD,const Parameter& param);  
   void          CalcMembraneHeight(const dpdsystem& sDPD);
   
-  void DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, FILE* fp);
+  void DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const int time, FILE* fp);
   
 public:
   explicit Observer(const Parameter& param);
@@ -77,7 +60,7 @@ public:
   void DumpPressure(const dpdsystem& sDPD, const Parameter& param, const double3& vil);
   void DumpConfigTempera(const double configT);
   void DumpLocalVal(const dpdsystem &sDPD, const Parameter& param);
-  void DumpTranject(const dpdsystem& sDPD, const ChemInfo& cheminfo);
-  void DumpFinalConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo);
+  void DumpTranject(const dpdsystem& sDPD, const ChemInfo& cheminfo, const int time);
+  void DumpFinalConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const int time);
   void DumpMembHeight(const dpdsystem& sDPD, const Parameter& param, const int time);
 };

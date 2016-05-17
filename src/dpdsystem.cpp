@@ -33,7 +33,7 @@ void dpdsystem::Initialize() {
     pv_bef[i]			= double3(std::numeric_limits<double>::signaling_NaN());
     force[i]			= double3(std::numeric_limits<double>::signaling_NaN());
     force_bef[i]		= double3(std::numeric_limits<double>::signaling_NaN());
-    delta_sumr[i]		= double3(std::numeric_limits<double>::signaling_NaN());
+    delta_sumr[i]		= double3(0.0);
     celllist.next_dest[i]	= -1;
 
 #ifdef ADD_POSRES
@@ -197,11 +197,22 @@ void dpdsystem::SetPosresPrtcl() {
 }
 #endif
 
-void dpdsystem::ReadParticleConfig() {
+int dpdsystem::ReadParticleConfig() {
   std::string fname = p_param->cur_dir + "/init_config.xyz";
   std::ifstream fin(fname.c_str());
   CHECK_FILE_OPEN(fin);
 
+  int num_line = 0, time = 0;
+  std::string header; 
+  fin >> num_line;
+  CHECK_EQUATION(num_line == Parameter::SYS_SIZE, num_line);
+  fin >> header >> time;
+  if (header != "time") {
+    std::cerr << "File header information is wrong.\n";
+    std::cerr << "Header tag is " << header << std::endl;
+    std::exit(1);
+  }
+  
   int id = 0, w_n = 0, h_n = 0, b_n = 0;
   char buf_type = '\0';
   double3 buf_p(0.0), buf_v(0.0);
@@ -239,7 +250,9 @@ void dpdsystem::ReadParticleConfig() {
 
   CHECK_EQUATION(w_n == p_param->wN, w_n);
   CHECK_EQUATION(h_n == p_param->hN, h_n);
-  CHECK_EQUATION(b_n == p_param->bN, b_n);  
+  CHECK_EQUATION(b_n == p_param->bN, b_n);
+  
+  return time;
 }
 
 void dpdsystem::SetBondedParameter() {
@@ -302,10 +315,11 @@ void dpdsystem::CheckInitialized() const {
     CHECK_EQUATION(prop[cheminfo.lip_elem_idx[i]] != Water, prop[cheminfo.lip_elem_idx[i]]);
 }
 
-void dpdsystem::GenParticles(ChemManager& chemmanage) {
-  ReadParticleConfig();
+int dpdsystem::GenParticles(ChemManager& chemmanage) {
+  const auto cur_time = ReadParticleConfig();
   SetBondedParameter();
   chemmanage.RegistLipidIdx(cheminfo);
+  return cur_time;
 }
 
 void dpdsystem::FirstStep(B_sorter& bsorter, ChemManager& chemmanage, F_calculator& f_calc) {
@@ -321,32 +335,35 @@ void dpdsystem::Execute(const int all_time,
 			const int time_step_mac,
 			const int time_step_vt,
 			const int chem_beg) {
+  // construct classes.
   ChemManager chemmanage;
   F_calculator f_calc(*p_param);
   B_sorter bsorter(*p_param);
   RNG rng(1234, omp_get_max_threads());
   // RNG rng( (size_t)time(NULL), omp_get_max_threads());
+  p_observer->Initialize(*p_param);
 
-  GenParticles(chemmanage);
+  // read restart configuration.
+  const auto beg_time = GenParticles(chemmanage);
   CheckInitialized();
 #ifdef ADD_POSRES
   SetPosresPrtcl();
 #endif
-  
+
+  // main MD loop
+  const auto end_time = beg_time + all_time;
   FirstStep(bsorter, chemmanage, f_calc);
-  for (int time = 0; time < all_time; time++) {
-    //std::cout << "time" <<  time << std::endl;
+  for (auto time = beg_time; time < end_time; time++) {
     if (time == Parameter::EQUIL_TIME) RemoveCMDrift();
 
     VelocVerlet1();
 
     bsorter.MkPrtclIdx(pr, *p_param, celllist);
     if (time % B_sorter::SORT_FREQ == 0) {
-      bsorter.BucketSort(*this,cheminfo,*p_param,celllist); 
+      bsorter.BucketSort(*this, cheminfo, *p_param, celllist); 
       chemmanage.RegistLipidIdx(cheminfo);
     }
     bsorter.SetPrtclCellIdxNoSTL(celllist,*p_param);
-
 
     f_calc.AddConservForce(pr, prop, force, celllist, *p_param, cheminfo);
 
@@ -361,8 +378,8 @@ void dpdsystem::Execute(const int all_time,
 #endif
 
 #ifdef DEBUG
-    bsorter.CheckSorted(*this, *p_param, celllist);
-    bsorter.CheckNearList(*this, *p_param);
+    // bsorter.CheckSorted(*this, *p_param, celllist);
+    // bsorter.CheckNearList(*this, *p_param);
 #endif
 
 #ifdef CHEM_MODE
@@ -377,7 +394,7 @@ void dpdsystem::Execute(const int all_time,
     }
 
     if (time % time_step_mic == 0) {
-      p_observer->DumpTranject(*this, cheminfo);
+      p_observer->DumpTranject(*this, cheminfo, time);
     }
     
     if (time % time_step_mac == 0) {
@@ -395,6 +412,6 @@ void dpdsystem::Execute(const int all_time,
     }
   } //end of main loop
 
-  p_observer->DumpFinalConfig(*this, cheminfo);
+  p_observer->DumpFinalConfig(*this, cheminfo, end_time);
 }
 

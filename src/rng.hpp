@@ -9,7 +9,7 @@
 
 #include <random>
 
-class RNG{
+class RNG {
   const size_t n_rng;
   std::mt19937* gen = nullptr;
   std::uniform_real_distribution<> uni_dist; //range is [0,1].
@@ -25,7 +25,7 @@ public:
   explicit RNG(const size_t th_numb) : n_rng(th_numb) {
     gen = new std::mt19937 [th_numb];
     const size_t base_seed = static_cast<size_t>(time(nullptr));
-    for(size_t i = 0; i < th_numb; i++) gen[i].seed(base_seed + i * 10);
+    for (size_t i = 0; i < th_numb; i++) gen[i].seed(base_seed + i * 10);
     normal_dist = new std::normal_distribution<> (0.0, 1.0);
   }
   
@@ -37,7 +37,7 @@ public:
   INLINE double Uniform(const int tid) {
     return uni_dist(gen[tid]);
   }
-  INLINE double Uniform(const int tid, const double up, const double dw){
+  INLINE double Uniform(const int tid, const double up, const double dw) {
     return dw + (up - dw) * uni_dist(gen[tid]);
   }
 

@@ -42,7 +42,7 @@ F_calculator::F_calculator(const Parameter& param) {
   itrs  = param.GetIntractions();
   binfo = param.GetBindInform();
   const int th_numb   = omp_get_max_threads();
-  buf_vir.resize(th_numb, double3(0.0) );
+  buf_vir.resize(th_numb, double3(0.0, 0.0, 0.0));
   buf_lap_pot.resize(th_numb, 0.0);
   DevideCell(param);
 }
@@ -209,7 +209,7 @@ void F_calculator::AddCollisionHalf(const double3*  __restrict pr,
 				    const Parameter&           param,
 				    RNG&                       rng,
 				    const int                  call_num) {
-  const double nois_amp   = std::sqrt(2.0 * param.tempera);
+  const double nois_amp  = std::sqrt(2.0 * param.tempera);
   
   const int	tid	 = omp_get_thread_num();
   const int	beg_grid = grid_numbtw * (tid * numb_band + p_num_band[call_num]) ;

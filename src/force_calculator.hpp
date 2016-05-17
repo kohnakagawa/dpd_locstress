@@ -16,12 +16,6 @@ class F_calculator{
   
   int grid_numbtw = -1, numb_band = -1, p_num_band[3] = {-1, -1, -1};
 
-  INLINE void MinImage(double3& a,const Parameter& param) {
-    a.x -= param.L.x * round(a.x * param.iL.x);
-    a.y -= param.L.y * round(a.y * param.iL.y);
-    a.z -= param.L.z * round(a.z * param.iL.z);
-  }
-
   INLINE void StoreBondForce(const double3& __restrict dr,
 			     const double& __restrict inv_dr,
 			     double3& d_virial,
@@ -74,16 +68,16 @@ class F_calculator{
   }
 
   INLINE void ClearForce(double3* force) {
-    for(int i = 0; i < Parameter::SYS_SIZE; i++) force[i].clear();
+    for (int i = 0; i < Parameter::SYS_SIZE; i++) force[i].clear();
     buf_lap_pot.assign(buf_lap_pot.size(), 0.0);
     buf_vir.assign(buf_vir.size(), double3(0.0));
   }
 
-  void AssertForce(double3* force) {
-    for(int i = 0; i < Parameter::SYS_SIZE; i++) force[i].isfinite3();
+  void CheckForce(double3* force) {
+    for (int i = 0; i < Parameter::SYS_SIZE; i++) force[i].isfinite3();
   }
 
-  void DevideCell(const Parameter& param){
+  void DevideCell(const Parameter& param) {
     const int th_numb   = omp_get_max_threads();
     grid_numbtw = param.grid_numb[0] * param.grid_numb[1];
     numb_band   = param.grid_numb[2] / th_numb;
@@ -120,8 +114,7 @@ class F_calculator{
 			 const double cf_g,
 			 const double nrml,
 			 const double inv_dr,
-			 const Parameter& param)
-  {
+			 const Parameter& param) {
     const double  g_invdr_dt = cf_g * (inv_dr - 1.0) * param.dt_c;
     const double  cf_numer   = inv_dr * g_invdr_dt;
     const double3 dv         = vi - vj;
@@ -141,8 +134,7 @@ class F_calculator{
 			  const double nrml,
 			  const double inv_dr,
 			  const double dr_norm, 
-			  const Parameter& param)
-  {
+			  const Parameter& param) {
     const double w_dt			= cf_g * std::sqrt(1.0 - dr_norm) * param.dt_c;
     const double3 dv			= vi - vj;
     
@@ -181,8 +173,7 @@ class F_calculator{
 		    double&  __restrict lap_conf,
 		    const int beg_idx,
 		    const int* elem_idx,
-		    const Parameter& param)
-  {
+		    const Parameter& param) {
     double3 Fbb[bond_n], temp_pos[bond_n], dr[bond_n - 1];
     double  dist2[bond_n - 1], inv_dr[bond_n - 1];
 
@@ -243,6 +234,12 @@ public:
 		 const double3* __restrict pr_base,
 		 double3* __restrict force,
 		 const bool* __restrict rest_on);
+
+  static INLINE void MinImage(double3& a, const Parameter& param) {
+    a.x -= param.L.x * std::round(a.x * param.iL.x);
+    a.y -= param.L.y * std::round(a.y * param.iL.y);
+    a.z -= param.L.z * std::round(a.z * param.iL.z);
+  }
   
   double DumpConfigT(const double3* F) const {
     const double lap_pot = std::accumulate(buf_lap_pot.cbegin(), buf_lap_pot.cend(), 0.0);
