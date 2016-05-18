@@ -2,7 +2,7 @@
 
 void dpdsystem::VelocVerlet1() {
 #pragma omp parallel for
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     force_bef[i] = force[i];
     pv_bef[i]    = pv[i];
     const double3 temp_dr((pv[i].x + 0.5 * p_param->dt * force[i].x) * p_param->dt,
@@ -32,7 +32,7 @@ void dpdsystem::VelocVerlet1() {
 }
 
 void dpdsystem::VelocVerlet2(){
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     pv[i].x = pv_bef[i].x + 0.5 * (force[i].x + force_bef[i].x) * p_param->dt;
     pv[i].y = pv_bef[i].y + 0.5 * (force[i].y + force_bef[i].y) * p_param->dt;
     pv[i].z = pv_bef[i].z + 0.5 * (force[i].z + force_bef[i].z) * p_param->dt;

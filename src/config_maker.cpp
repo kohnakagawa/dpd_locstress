@@ -11,6 +11,7 @@
 #include "parameter.hpp"
 
 constexpr char PtclBuffer::atom_type[21];
+int Parameter::sys_size;
 
 class ConfigMaker {
   const char* cur_dir_ = nullptr;
@@ -35,12 +36,12 @@ class ConfigMaker {
     // remove cm drift
     double3 cm_vel = std::accumulate(ptcl_buffer_.cbegin(), ptcl_buffer_.cend(), double3(0.0, 0.0, 0.0), 
 				     [](const double3& sum, const PtclBuffer& val) {return sum + val.vel;});
-    cm_vel /= Parameter::SYS_SIZE;
+    cm_vel /= Parameter::sys_size;
     for (auto& ptcl : ptcl_buffer_) ptcl.vel -= cm_vel;
   }
 
   void SortPtclBuffer(const Parameter& param) {
-    for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+    for (int i = 0; i < Parameter::sys_size; i++) {
       int key[3] = {-1};
       for (int j = 0; j < 3; j++) {
 	key[j] = static_cast<int>(ptcl_buffer_[i].pos[j] * param.i_grid_leng[j]);
@@ -219,7 +220,7 @@ class ConfigMaker {
     const double top = std::accumulate(ptcl_buffer_.cbegin(), ptcl_buffer_.cbegin() + added_num, 0.0,
 				       [=](const double sum, const PtclBuffer& val) {return (sum > val.pos[axis]) ? sum : val.pos[axis];});
     int water_idx = param.hN + param.bN;
-    while (water_idx < Parameter::SYS_SIZE) {
+    while (water_idx < Parameter::sys_size) {
       const auto base = GenRandVec(prng, uniform, param.L);
       if (!(base[axis] > org && base[axis] < top)) {
 	SetWaterPos(base, water_idx);
@@ -285,7 +286,7 @@ class ConfigMaker {
 							sum.y + val.vel.y * val.vel.y,
 							sum.z + val.vel.z * val.vel.z);
 				       });
-    vel2_sum /= Parameter::SYS_SIZE;
+    vel2_sum /= Parameter::sys_size;
     std::cerr << "Temperature = " << vel2_sum << std::endl;
 
     // topology check
@@ -336,7 +337,7 @@ public:
     std::ofstream fout(fname.c_str());
     
     // allocate ptcl buffer
-    ptcl_buffer_.resize(Parameter::SYS_SIZE);
+    ptcl_buffer_.resize(Parameter::sys_size);
 
     // prng
     std::mt19937 mt_rnd(time(nullptr));

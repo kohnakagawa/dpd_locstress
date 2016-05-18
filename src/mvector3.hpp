@@ -89,7 +89,7 @@ struct vector3{
   }
   
   //inverse square root
-  //for IEEE754
+  // for IEEE754
   INLINE float m_rsqrt(const float& r) const {
     const float rHalf = 0.5 * r;
     const int   tmp   = 0x5F3759DF - ( *(int*)&r >> 1 );
@@ -98,7 +98,7 @@ struct vector3{
     rRes *= ( 1.5 - ( rHalf * rRes * rRes ) );
     return rRes;
   }
-  //for IEEE754
+  // for IEEE754
   INLINE double m_rsqrt(const double& r) const {
     const double         rHalf = 0.5 * r;
     const long long int  tmp   = 0x5FE6EB50C7B537AAl - ( *(long long int*)&r >> 1);//initial guess

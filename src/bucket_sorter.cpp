@@ -2,10 +2,10 @@
 
 B_sorter::B_sorter(const Parameter& param) {
   interact_list   = new std::array<int, 13> [param.all_grid];
-  buf_double3	  = new double3  [Parameter::SYS_SIZE];
-  buf_int	  = new int [Parameter::SYS_SIZE];
-  buf_prop	  = new par_prop [Parameter::SYS_SIZE];
-  buf_bool	  = new bool [Parameter::SYS_SIZE];
+  buf_double3	  = new double3  [Parameter::sys_size];
+  buf_int	  = new int [Parameter::sys_size];
+  buf_prop	  = new par_prop [Parameter::sys_size];
+  buf_bool	  = new bool [Parameter::sys_size];
     
   GenInteractList(param);
 }
@@ -47,24 +47,24 @@ void B_sorter::BucketSort(dpdsystem& sDPD,
 			  ChemInfo& cheminfo,
 			  const Parameter& param,
 			  const CellList& celllist) {
-  CopyGather(sDPD.pr, buf_double3, Parameter::SYS_SIZE, celllist);
-  CopyGather(sDPD.pv, buf_double3, Parameter::SYS_SIZE, celllist);
-  CopyGather(sDPD.prop, buf_prop, Parameter::SYS_SIZE, celllist);
-  CopyGather(sDPD.pv_bef, buf_double3, Parameter::SYS_SIZE, celllist);
-  CopyGather(sDPD.delta_sumr, buf_double3, Parameter::SYS_SIZE, celllist);
-  CopyGather(sDPD.force, buf_double3, Parameter::SYS_SIZE, celllist);
-  CopyGather(sDPD.force_bef, buf_double3, Parameter::SYS_SIZE, celllist);
-  CopyGather(cheminfo.prtcl_chem, buf_bool, Parameter::SYS_SIZE, celllist);
-  CopyGather(cheminfo.lipid_idx, buf_int, Parameter::SYS_SIZE, celllist);
-  CopyGather(cheminfo.part_idx, buf_int, Parameter::SYS_SIZE, celllist);
-  CopyGather(cheminfo.lipid_unit, buf_int, Parameter::SYS_SIZE, celllist);
+  CopyGather(sDPD.pr, buf_double3, Parameter::sys_size, celllist);
+  CopyGather(sDPD.pv, buf_double3, Parameter::sys_size, celllist);
+  CopyGather(sDPD.prop, buf_prop, Parameter::sys_size, celllist);
+  CopyGather(sDPD.pv_bef, buf_double3, Parameter::sys_size, celllist);
+  CopyGather(sDPD.delta_sumr, buf_double3, Parameter::sys_size, celllist);
+  CopyGather(sDPD.force, buf_double3, Parameter::sys_size, celllist);
+  CopyGather(sDPD.force_bef, buf_double3, Parameter::sys_size, celllist);
+  CopyGather(cheminfo.prtcl_chem, buf_bool, Parameter::sys_size, celllist);
+  CopyGather(cheminfo.lipid_idx, buf_int, Parameter::sys_size, celllist);
+  CopyGather(cheminfo.part_idx, buf_int, Parameter::sys_size, celllist);
+  CopyGather(cheminfo.lipid_unit, buf_int, Parameter::sys_size, celllist);
 
 #ifdef ADD_POSRES
-  CopyGather(sDPD.rest_on, buf_bool, Parameter::SYS_SIZE, celllist);
-  CopyGather(sDPD.pr_base, buf_double3, Parameter::SYS_SIZE, celllist);
+  CopyGather(sDPD.rest_on, buf_bool, Parameter::sys_size, celllist);
+  CopyGather(sDPD.pr_base, buf_double3, Parameter::sys_size, celllist);
 #endif
   
-  for (int i = 0; i < Parameter::SYS_SIZE; i++)
+  for (int i = 0; i < Parameter::sys_size; i++)
     celllist.prtcl_idx[i] = i;
 
   for (int tar_grid = 0; tar_grid < param.all_grid; tar_grid++) {
@@ -84,7 +84,7 @@ void B_sorter::MkPrtclIdx(const double3* pr,
     celllist.buck_addrs[0] = 0;
   
     //counting elem
-    for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+    for (int i = 0; i < Parameter::sys_size; i++) {
       const int hash = GenHash(pr[i], param);
       celllist.buck_elem[hash]++;
       celllist.prtcl_in_cell[i] = hash;
@@ -95,11 +95,11 @@ void B_sorter::MkPrtclIdx(const double3* pr,
       celllist.buck_addrs[i + 1] = celllist.buck_addrs[i] + celllist.buck_elem[i];
 
 #ifdef DEBUG
-    assert(celllist.buck_addrs[param.all_grid] == Parameter::SYS_SIZE);
+    assert(celllist.buck_addrs[param.all_grid] == Parameter::sys_size);
 #endif
   
     //calc destination
-    for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+    for (int i = 0; i < Parameter::sys_size; i++) {
       const int	hash		   = celllist.prtcl_in_cell[i];
       const int	temp_idx	   = celllist.buck_addrs[hash];
       celllist.next_dest[i]	   = temp_idx;
@@ -170,8 +170,8 @@ void B_sorter::CheckSorted(const dpdsystem& sDPD,
     }*/
   for (int tar_grid = 0; tar_grid < param.all_grid; tar_grid++) {
     for (int pi = celllist.buck_addrs[tar_grid]; pi < celllist.buck_addrs[tar_grid + 1]; pi++) {
-      assert(pi < Parameter::SYS_SIZE);
-      assert(celllist.prtcl_idx[pi] < Parameter::SYS_SIZE);
+      assert(pi < Parameter::sys_size);
+      assert(celllist.prtcl_idx[pi] < Parameter::sys_size);
       const int hash = GenHash(sDPD.pr[celllist.prtcl_idx[pi]], param);
       if (hash != tar_grid) {
 	std::cout << pi  << " " << hash << " " << tar_grid << std::endl;
@@ -184,8 +184,8 @@ void B_sorter::CheckSorted(const dpdsystem& sDPD,
 
 void B_sorter::CheckNearList(const dpdsystem& sDPD, const Parameter& param) const {
   std::ofstream fout("pair.txt");
-  for (int i = 0; i < Parameter::SYS_SIZE - 1; i++) {
-    for (int j = i + 1; j < Parameter::SYS_SIZE; j++) {
+  for (int i = 0; i < Parameter::sys_size - 1; i++) {
+    for (int j = i + 1; j < Parameter::sys_size; j++) {
       double3 dr = sDPD.pr[i] - sDPD.pr[j];
       dr.x -= param.L.x * static_cast<int>(dr.x * param.ihL.x);
       dr.y -= param.L.y * static_cast<int>(dr.y * param.ihL.y);

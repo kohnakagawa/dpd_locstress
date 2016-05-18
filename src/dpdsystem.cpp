@@ -13,6 +13,8 @@
 #include <limits>
 #include <numeric>
 
+int Parameter::sys_size;
+
 dpdsystem::dpdsystem(const Parameter& p_param_) {
   p_param = &p_param_;
 }
@@ -26,7 +28,7 @@ void dpdsystem::Initialize() {
   
   // set values
 #pragma omp parallel for // for NUMA
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     pr[i]			= double3(std::numeric_limits<double>::signaling_NaN());
     pv[i]			= double3(std::numeric_limits<double>::signaling_NaN());
     prop[i]			= Water;
@@ -50,7 +52,7 @@ void dpdsystem::Initialize() {
 
   const int int_max = std::numeric_limits<int>::max();
 #pragma omp parallel for // for NUMA
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     cheminfo.lipid_idx[i]	= int_max;
     cheminfo.part_idx[i]	= int_max;
     cheminfo.lipid_unit[i]	= int_max;
@@ -68,7 +70,7 @@ void dpdsystem::Initialize() {
   for (int i = 0; i < p_param->ampN * Parameter::ALL_UNIT_N; i++)
     cheminfo.lip_elem_idx[i] = int_max;
 
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     cheminfo.near_water[i]	= 0;
     cheminfo.near_info[i].dist	= 4.0;
     cheminfo.near_info[i].idx	= -1;
@@ -84,48 +86,48 @@ void dpdsystem::AllocMem(const Parameter& param) {
 
   celllist.buck_elem   = new int      [param.all_grid    ];
   celllist.buck_addrs  = new int      [param.all_grid + 1];
-  celllist.next_dest   = new int      [Parameter::SYS_SIZE];
+  celllist.next_dest   = new int      [Parameter::sys_size];
 
 #if 0
-  pr         = allocate<double3,MEM_ALIGNMENT >(Parameter::SYS_SIZE);
-  pv         = allocate<double3,MEM_ALIGNMENT >(Parameter::SYS_SIZE);
-  prop       = allocate<par_prop,MEM_ALIGNMENT>(Parameter::SYS_SIZE);
-  pv_bef     = allocate<double3,MEM_ALIGNMENT >(Parameter::SYS_SIZE);
-  force	     = allocate<double3,MEM_ALIGNMENT >(Parameter::SYS_SIZE);
-  force_bef  = allocate<double3,MEM_ALIGNMENT >(Parameter::SYS_SIZE);
-  delta_sumr = allocate<double3,MEM_ALIGNMENT >(Parameter::SYS_SIZE);
+  pr         = allocate<double3,MEM_ALIGNMENT >(Parameter::sys_size);
+  pv         = allocate<double3,MEM_ALIGNMENT >(Parameter::sys_size);
+  prop       = allocate<par_prop,MEM_ALIGNMENT>(Parameter::sys_size);
+  pv_bef     = allocate<double3,MEM_ALIGNMENT >(Parameter::sys_size);
+  force	     = allocate<double3,MEM_ALIGNMENT >(Parameter::sys_size);
+  force_bef  = allocate<double3,MEM_ALIGNMENT >(Parameter::sys_size);
+  delta_sumr = allocate<double3,MEM_ALIGNMENT >(Parameter::sys_size);
 #else
-  pr         = new double3  [Parameter::SYS_SIZE];
-  pv         = new double3  [Parameter::SYS_SIZE];
-  prop       = new par_prop [Parameter::SYS_SIZE];
-  pv_bef     = new double3  [Parameter::SYS_SIZE];
-  force      = new double3  [Parameter::SYS_SIZE];
-  force_bef  = new double3  [Parameter::SYS_SIZE];
-  delta_sumr = new double3  [Parameter::SYS_SIZE];
+  pr         = new double3  [Parameter::sys_size];
+  pv         = new double3  [Parameter::sys_size];
+  prop       = new par_prop [Parameter::sys_size];
+  pv_bef     = new double3  [Parameter::sys_size];
+  force      = new double3  [Parameter::sys_size];
+  force_bef  = new double3  [Parameter::sys_size];
+  delta_sumr = new double3  [Parameter::sys_size];
 
 #ifdef ADD_POSRES
-  pr_base    = new double3  [Parameter::SYS_SIZE];
-  rest_on    = new bool     [Parameter::SYS_SIZE];
+  pr_base    = new double3  [Parameter::sys_size];
+  rest_on    = new bool     [Parameter::sys_size];
 #endif
 
 #endif
 
-  cheminfo.prtcl_chem	 = new bool    [Parameter::SYS_SIZE];
+  cheminfo.prtcl_chem	 = new bool    [Parameter::sys_size];
   cheminfo.lipid_chem	 = new bool    [param.ampN         ];
-  cheminfo.lipid_idx	 = new int       [Parameter::SYS_SIZE];
-  cheminfo.part_idx	 = new int       [Parameter::SYS_SIZE];
-  cheminfo.lipid_unit	 = new int       [Parameter::SYS_SIZE];
+  cheminfo.lipid_idx	 = new int       [Parameter::sys_size];
+  cheminfo.part_idx	 = new int       [Parameter::sys_size];
+  cheminfo.lipid_unit	 = new int       [Parameter::sys_size];
   cheminfo.lip_elem_idx	 = new int       [param.ampN * Parameter::ALL_UNIT_N];
   cheminfo.head_elem_idx = new int       [Parameter::REAC_PART * param.headN];
   cheminfo.tail_elem_idx = new int       [Parameter::TAIL_PART * param.tailN];
-  cheminfo.near_water	 = new float     [Parameter::SYS_SIZE];
-  cheminfo.near_info	 = new float_int [Parameter::SYS_SIZE];
+  cheminfo.near_water	 = new float     [Parameter::sys_size];
+  cheminfo.near_info	 = new float_int [Parameter::sys_size];
 
   celllist.near_prtcl_idx = new std::vector<int> [param.all_grid];
   for(int i = 0; i < param.all_grid; i++) celllist.near_prtcl_idx[i].resize(Parameter::BUF_SIZE);
   celllist.n_near_prtcl   = new int [param.all_grid];
-  celllist.prtcl_idx      = new int [Parameter::SYS_SIZE];
-  celllist.prtcl_in_cell  = new int [Parameter::SYS_SIZE];
+  celllist.prtcl_idx      = new int [Parameter::sys_size];
+  celllist.prtcl_in_cell  = new int [Parameter::sys_size];
 }
 
 void dpdsystem::DeallocMem() {
@@ -181,14 +183,14 @@ void dpdsystem::DeallocMem() {
 }
 
 void dpdsystem::RemoveCMDrift() {
-  double3 cm_vel = std::accumulate(pv, pv + Parameter::SYS_SIZE, double3(0.0));
-  cm_vel /= Parameter::SYS_SIZE;
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) pv[i] -= cm_vel;
+  double3 cm_vel = std::accumulate(pv, pv + Parameter::sys_size, double3(0.0));
+  cm_vel /= Parameter::sys_size;
+  for (int i = 0; i < Parameter::sys_size; i++) pv[i] -= cm_vel;
 }
 
 #ifdef ADD_POSRES
 void dpdsystem::SetPosresPrtcl() {
-  for(int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for(int i = 0; i < Parameter::sys_size; i++) {
     if (!cheminfo.prtcl_chem[i] && cheminfo.lipid_unit[i] == (Parameter::ALL_UNIT_N - 2)) {
       rest_on[i] = true;
       pr_base[i] = pr[i];
@@ -205,7 +207,7 @@ int dpdsystem::ReadParticleConfig() {
   int num_line = 0, time = 0;
   std::string header; 
   fin >> num_line;
-  CHECK_EQUATION(num_line == Parameter::SYS_SIZE, num_line);
+  CHECK_EQUATION(num_line == Parameter::sys_size, num_line);
   fin >> header >> time;
   if (header != "time") {
     std::cerr << "File header information is wrong.\n";
@@ -237,14 +239,14 @@ int dpdsystem::ReadParticleConfig() {
     if (buf_prop == Water ) w_n++;
     if (buf_prop == Hyphil) h_n++;
     if (buf_prop == Hyphob) b_n++;
-    if (id > Parameter::SYS_SIZE) {
-      std::cerr << "# of particle is larger than SYS_SIZE \n";
+    if (id > Parameter::sys_size) {
+      std::cerr << "# of particle is larger than sys_size \n";
       std::exit(1);
     }
   }
   
-  if (id != Parameter::SYS_SIZE) {
-    std::cerr << "# of particle is smaller than SYS_SIZE \n";
+  if (id != Parameter::sys_size) {
+    std::cerr << "# of particle is smaller than sys_size \n";
     std::exit(1);
   }
 
@@ -258,7 +260,7 @@ int dpdsystem::ReadParticleConfig() {
 void dpdsystem::SetBondedParameter() {
   for (int i = 0; i < p_param->ampN; i++) cheminfo.lipid_chem[i] = false;
   
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     const int l_unit = cheminfo.lipid_unit[i];
     const int l_idx  = cheminfo.lipid_idx[i];
     if ((l_unit == Parameter::REAC_PART) || (l_unit == Parameter::REAC_PART - 1)) {
@@ -278,7 +280,7 @@ void dpdsystem::SetBondedParameter() {
 }
 
 void dpdsystem::CheckInitialized() const {
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     const int l_unit = cheminfo.lipid_unit[i];
     const int l_idx  = cheminfo.lipid_idx[i];
     const bool prtcl_chem = cheminfo.prtcl_chem[i];
@@ -288,7 +290,7 @@ void dpdsystem::CheckInitialized() const {
   }
   
   const double3 zerov(0.0);
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     CHECK_EQUATION(pr[i] <= p_param->L, pr[i]);
     CHECK_EQUATION(pr[i] >= zerov, pr[i]);
     CHECK_EQUATION(pv[i].isfinite3(), pv[i]);
@@ -296,17 +298,17 @@ void dpdsystem::CheckInitialized() const {
     CHECK_EQUATION(prop[i] < 3, prop[i]);
   }
 
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     CHECK_EQUATION(cheminfo.lipid_idx[i] < p_param->ampN, cheminfo.lipid_idx[i]);
     CHECK_EQUATION((cheminfo.part_idx[i] < p_param->tailN) || (cheminfo.part_idx[i] < p_param->headN), cheminfo.part_idx[i]);
     CHECK_EQUATION(cheminfo.lipid_unit[i] < p_param->ALL_UNIT_N, cheminfo.lipid_unit[i]);
   }
   for (int i = 0; i < p_param->headN * Parameter::REAC_PART; i++)
-    CHECK_EQUATION(cheminfo.head_elem_idx[i] < Parameter::SYS_SIZE, cheminfo.head_elem_idx[i]);
+    CHECK_EQUATION(cheminfo.head_elem_idx[i] < Parameter::sys_size, cheminfo.head_elem_idx[i]);
   for (int i = 0; i < p_param->tailN * Parameter::TAIL_PART; i++)
-    CHECK_EQUATION(cheminfo.tail_elem_idx[i] < Parameter::SYS_SIZE, cheminfo.tail_elem_idx[i]);
+    CHECK_EQUATION(cheminfo.tail_elem_idx[i] < Parameter::sys_size, cheminfo.tail_elem_idx[i]);
   for (int i = 0; i < p_param->ampN * Parameter::ALL_UNIT_N; i++)
-    CHECK_EQUATION(cheminfo.lip_elem_idx[i] < Parameter::SYS_SIZE, cheminfo.lip_elem_idx[i]);
+    CHECK_EQUATION(cheminfo.lip_elem_idx[i] < Parameter::sys_size, cheminfo.lip_elem_idx[i]);
   for (int i = 0; i < p_param->headN * Parameter::REAC_PART; i++)
     CHECK_EQUATION(prop[cheminfo.head_elem_idx[i]] != Water, prop[cheminfo.head_elem_idx[i]]);
   for (int i = 0; i < p_param->tailN * Parameter::TAIL_PART; i++) 

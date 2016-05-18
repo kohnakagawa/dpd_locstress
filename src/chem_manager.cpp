@@ -4,7 +4,7 @@ void ChemManager:: DetChemReac(const Parameter& param,
 			       ChemInfo& cheminfo,
 			       RNG& rng) {
   // ASSUME: tailN <= headN
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     const int   unit_id = cheminfo.lipid_unit[i];
     const bool chm_flag = cheminfo.prtcl_chem[i];
 #ifdef INVERSE_CHEM
@@ -54,7 +54,7 @@ void ChemManager:: DetChemReac(const Parameter& param,
   }
 
   // ASSUME: tailN <= headN
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     bool flag = true;
     const int l_idx = cheminfo.lipid_idx[i];
     if (l_idx != -1) flag = cheminfo.lipid_chem[l_idx];
@@ -68,7 +68,7 @@ void ChemManager:: DetChemReac(const Parameter& param,
 
 //ASSUME: tailN <= headN
 void ChemManager::ReSearchNearest(ChemInfo& cheminfo) {
-  for (int tail_idx = 0; tail_idx < Parameter::SYS_SIZE; tail_idx++) {
+  for (int tail_idx = 0; tail_idx < Parameter::sys_size; tail_idx++) {
     const int head_idx = cheminfo.near_info[tail_idx].idx;
     if ((head_idx != -1) && (cheminfo.lipid_unit[tail_idx] == Parameter::REAC_PART)) {
       const float tail2head = cheminfo.near_info[tail_idx].dist;
@@ -83,7 +83,7 @@ void ChemManager::ReSearchNearest(ChemInfo& cheminfo) {
 }
 
 void ChemManager::ClearNearInfo(ChemInfo& cheminfo) {
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     cheminfo.near_info[i].dist = 4.0;
     cheminfo.near_info[i].idx  = -1;
     cheminfo.near_water[i] = 0.0;
@@ -91,7 +91,7 @@ void ChemManager::ClearNearInfo(ChemInfo& cheminfo) {
 }
 
 void ChemManager::RegistLipidIdx(ChemInfo& cheminfo) {
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     bool chm_flag = false;
     const int l_idx     = cheminfo.lipid_idx[i];
     const int unit_id   = cheminfo.lipid_unit[i];

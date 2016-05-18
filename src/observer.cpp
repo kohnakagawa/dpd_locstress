@@ -58,16 +58,16 @@ void Observer::Initialize(const Parameter& param) {
 }
 
 double Observer::CalcKinTempera(const dpdsystem &sDPD) {
-  double kin_temp = std::accumulate(sDPD.pv, sDPD.pv + Parameter::SYS_SIZE, 0.0,
+  double kin_temp = std::accumulate(sDPD.pv, sDPD.pv + Parameter::sys_size, 0.0,
 				    [](const double sum, const double3& val) {return sum + val * val;});
-  kin_temp /= 3. * Parameter::SYS_SIZE;
+  kin_temp /= 3. * Parameter::sys_size;
   return kin_temp;
 }
 
 double Observer::CalcDiffs(const dpdsystem& sDPD) {
-  double difsum = std::accumulate(sDPD.delta_sumr, sDPD.delta_sumr + Parameter::SYS_SIZE, 0.0,
+  double difsum = std::accumulate(sDPD.delta_sumr, sDPD.delta_sumr + Parameter::sys_size, 0.0,
 				  [](const double sum, const double3& val) {return sum + val * val;});
-  difsum /= Parameter::SYS_SIZE;
+  difsum /= Parameter::sys_size;
   return difsum;
 }
 
@@ -78,7 +78,7 @@ double Observer::CalcGyration(const dpdsystem& sDPD, const Parameter& param) {
   const par_prop* t_prp = sDPD.prop;
   const int base_sample = 4;
   int baseN = 1, bef_hash = -1;
-  for(int i=0; i<Parameter::SYS_SIZE; i++){
+  for(int i=0; i<Parameter::sys_size; i++){
     const int prtcl_idx = sDPD.GetPrtclIdx(i);
     const double3 pos = t_r[prtcl_idx];
     const par_prop prp = t_prp[prtcl_idx];
@@ -101,7 +101,7 @@ double Observer::CalcGyration(const dpdsystem& sDPD, const Parameter& param) {
   
   //calc center of mass
   double3 cm_pos(0.0);
-  for(int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for(int i = 0; i < Parameter::sys_size; i++) {
     double3 pos = t_r[i];
     const par_prop prp = t_prp[i];
     if (prp != Water) {
@@ -114,7 +114,7 @@ double Observer::CalcGyration(const dpdsystem& sDPD, const Parameter& param) {
   
   //calc gyration tensor
   double gyr[3][3] = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
-  for(int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for(int i = 0; i < Parameter::sys_size; i++) {
     double3 pos = t_r[i];
     const par_prop prp = t_prp[i];
     if (prp != Water) {
@@ -208,7 +208,7 @@ double Observer::CalcOrientOrder(const dpdsystem& sDPD,const Parameter& param) {
 void Observer::CalcMembraneHeight(const dpdsystem& sDPD) {
   hei.assign(hei.size(), 0.0);
   hei_elem.assign(hei_elem.size(), 0);
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     if (sDPD.prop[i] != 0) {
       const int hash = GenHash2d(sDPD.pr[i]);
       hei[hash] += sDPD.pr[i].y;
@@ -231,7 +231,7 @@ void Observer::DumpMacroVal(const dpdsystem& sDPD,const Parameter& param){
 }
 
 void Observer::DumpPressure(const dpdsystem& sDPD, const Parameter& param, const double3& vil){
-  const double3 kin_strs = std::accumulate(sDPD.pv, sDPD.pv + Parameter::SYS_SIZE, double3(0.0, 0.0, 0.0),
+  const double3 kin_strs = std::accumulate(sDPD.pv, sDPD.pv + Parameter::sys_size, double3(0.0, 0.0, 0.0),
 					   [](const double3& sum, const double3& val) {return sum + val;});
   const double3 P  = (vil + kin_strs) * param.iL.x * param.iL.y * param.iL.z ;
   const double Sig = (P.y - (P.x + P.z) * 0.5) * param.L.y;
@@ -248,9 +248,9 @@ void Observer::DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, 
     'O', 'N', 'C', 'S'
   };
 
-  fprintf(fp, "%d\n", Parameter::SYS_SIZE);
+  fprintf(fp, "%d\n", Parameter::sys_size);
   fprintf(fp, "time %d\n", time);
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     const double3 pos   = sDPD.pr[i];
     const double3 vel   = sDPD.pv[i];
     const par_prop prp  = sDPD.prop[i];
@@ -287,7 +287,7 @@ void Observer::DumpLocalVal(const dpdsystem &sDPD, const Parameter& param) {
   loc_dense.assign(loc_dense.size(),0.0);
   loc_vel.assign(loc_vel.size(), double3(0.0));
 
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     const double3 pos = t_r[i];
     const double3 vel = t_v[i];
     int hash = static_cast<int>(pos.z * param.i_grid_leng.z);

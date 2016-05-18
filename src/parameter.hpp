@@ -4,6 +4,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <limits>
+#include <array>
 
 #include "mymath.hpp"
 #include "defs.hpp"
@@ -15,9 +16,10 @@ class Parameter {
     CHECK_FILE_OPEN(fin);
 
     double rho = 0.0;
-    fin >> rho >> tempera >> headN >> tailN >> dt >> grid_leng.x >> L.y >> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof;
-    L.z = L.x = std::sqrt(SYS_SIZE / (rho * L.y));
-    grid_leng.z = grid_leng.y = grid_leng.x; //ASSUME: grid_leng.x = grid_leng.y = grid_leng.z
+    fin >> rho >> tempera >> sys_size >> headN >> tailN >> dt >> grid_leng.x >> L.y >> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof >> ls_grid_.x;
+    L.z = L.x = std::sqrt(sys_size / (rho * L.y));
+    grid_leng.z = grid_leng.y = grid_leng.x; // ASSUME: grid_leng.x = grid_leng.y = grid_leng.z
+    ls_grid_.z = ls_grid_.y = ls_grid_.x;
     
     ampN = (headN < tailN) ? headN : tailN;
     
@@ -31,7 +33,7 @@ class Parameter {
       bN = (HYPHOB_N - (REAC_PART - HYPHIL_N)) * tailN + headN * (REAC_PART - HYPHIL_N);
     }
 
-    wN = SYS_SIZE - bN - hN;
+    wN = sys_size - bN - hN;
 
     iL	      = 1.0 / L;
     hL	      = 0.5 * L;
@@ -111,6 +113,7 @@ class Parameter {
 
     CHECK_EQUATION(tailN > 0, tailN);
     CHECK_EQUATION(headN > 0, headN);
+    CHECK_EQUATION(sys_size > 0, sys_size);
     
     CHECK_EQUATION(std::isfinite(dt), dt);
     CHECK_EQUATION(std::isfinite(tempera), tempera);
@@ -171,21 +174,18 @@ public:
     HYPHIL_N = 1,
     HYPHOB_N = 3,
     ALL_UNIT_N = HYPHIL_N + HYPHOB_N,
-    REAC_PART = 1, //bond connect/divide 0~1
+    REAC_PART = 1,
     TAIL_PART = ALL_UNIT_N - REAC_PART,
-    SYS_SIZE = 331776,
-    //normal box 48*48*48*3 = 331776,  40*40*40*3 = 192000, 36*36*36*3 = 139968, 32*32*32*3 = 98304, 28*28*28*3 = 65856, 24*24*24*3 = 41472, 20*20*20*3 = 24000 16*16*16*3=12288 12*12*12*3=5184 8*8*8*3=1536
-    //cuboid box 32*36*32*3 = 110592, 32*40*32*3 = 122880, 32*44*32*3 = 135168 12*16*12*3 = 6912 36*36*48*3 = 186624
     BUF_SIZE = 400,
     COL_FREQ = 10,
     EQUIL_TIME = 500000,
   };
 
-  static constexpr double lip_area = 2.0 * 36.0 * 36.0 / 4950.0; //NOTE: This value depends on molecular structure.
   static constexpr double b_leng   = 0.8;
-  static constexpr double i_bleng  = 1.0 / b_leng; // i_bleng = 1.0 / b_leng 
-
+  static constexpr double i_bleng  = 1.0 / b_leng;
   static constexpr double ch_leng  = 0.69;
+
+  static int sys_size;
   
   int wN = -1, bN = -1, hN = -1, ampN = -1, tailN = -1, headN = -1;
   double dt		= std::numeric_limits<double>::signaling_NaN();
@@ -194,7 +194,9 @@ public:
   double dt_c		= std::numeric_limits<double>::signaling_NaN();
   
   double3 L, iL, hL, ihL, grid_leng, i_grid_leng;
-
+  double3 ls_grid_;
+  std::array<int, 3> ls_grid_num;
+  
   int grid_numb[3] = {-1, -1, -1}, all_grid = -1;
   float coef_prob[3] = {-1.0, -1.0, -1.0}, prob_cutof = -1.0;
 

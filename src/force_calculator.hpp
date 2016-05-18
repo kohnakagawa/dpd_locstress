@@ -68,13 +68,13 @@ class F_calculator{
   }
 
   INLINE void ClearForce(double3* force) {
-    for (int i = 0; i < Parameter::SYS_SIZE; i++) force[i].clear();
+    for (int i = 0; i < Parameter::sys_size; i++) force[i].clear();
     buf_lap_pot.assign(buf_lap_pot.size(), 0.0);
     buf_vir.assign(buf_vir.size(), double3(0.0));
   }
 
   void CheckForce(double3* force) {
-    for (int i = 0; i < Parameter::SYS_SIZE; i++) force[i].isfinite3();
+    for (int i = 0; i < Parameter::sys_size; i++) force[i].isfinite3();
   }
 
   void DevideCell(const Parameter& param) {
@@ -243,7 +243,7 @@ public:
   
   double DumpConfigT(const double3* F) const {
     const double lap_pot = std::accumulate(buf_lap_pot.cbegin(), buf_lap_pot.cend(), 0.0);
-    const double numer   = std::accumulate(F, F + Parameter::SYS_SIZE, 0.0,
+    const double numer   = std::accumulate(F, F + Parameter::sys_size, 0.0,
 					   [](const double sum, const double3& val) {return sum + val * val;});
     return numer / lap_pot;
   }

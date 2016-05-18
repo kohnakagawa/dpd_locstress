@@ -150,8 +150,8 @@ void F_calculator::CalcForceHalf(const double3*  __restrict pr,
     const double3	ri       = pr[pi];
     const par_prop	prp_pi	 = prop[pi];
     if (tar_grid != bef_grid) {
-      begj=0;
-      bef_grid=tar_grid;
+      begj = 0;
+      bef_grid = tar_grid;
     }
     begj++;
     
@@ -257,7 +257,7 @@ void F_calculator::CalcForceInAmp(const double3* __restrict	pr,
 				  const ChemInfo&		cheminfo,
 				  const Parameter&		param) {
   double3 d_virial(0.0); double d_lap_potent = 0.0;
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     if (cheminfo.lipid_unit[i] == Parameter::REAC_PART) {
       if (cheminfo.prtcl_chem[i]) {
 	const int beg_idx = cheminfo.lipid_idx[i] * Parameter::ALL_UNIT_N;
@@ -284,7 +284,7 @@ void F_calculator::AddBindForceCyl(const double3*  __restrict pr,
 				   double3*        __restrict force,
 				   const ChemInfo&  cheminfo) {
   const double bind_cutof = 2.0;
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     const int l_idx = cheminfo.lipid_idx[i];
     bool chem = false;
     if (l_idx != -1) chem = cheminfo.lipid_chem[l_idx];
@@ -310,7 +310,7 @@ void F_calculator::AddBindForceSph(const double3* __restrict pr,
 				   const par_prop* __restrict prop,
 				   double3* __restrict force) {
   const double bind_cutoff = Parameter::ALL_UNIT_N * Parameter::b_leng * 0.5;
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     if (prop[i] != Water) {
       const double3 dr(pr[i].x - binfo.bind_center.x,
 		       pr[i].y - binfo.bind_center.y,
@@ -334,7 +334,7 @@ void F_calculator::AddPosRes(const double3* __restrict pr,
 			     const bool* __restrict rest_on) {
   constexpr double bcf = 200.0;
   
-  for (int i = 0; i < Parameter::SYS_SIZE; i++) {
+  for (int i = 0; i < Parameter::sys_size; i++) {
     if (rest_on[i]) {
       const double3 dr(pr[i].x - pr_base[i].x,
 		       0.0, //pr[i].y - pr_base[i].y,
