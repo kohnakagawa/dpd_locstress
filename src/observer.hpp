@@ -57,7 +57,7 @@ public:
   ~Observer();
   void Initialize(const Parameter& param);
   void DumpMacroVal(const dpdsystem& sDPD, const Parameter& param);
-  void DumpPressure(const dpdsystem& sDPD, const Parameter& param, const double3& vil);
+  void DumpPressure(const dpdsystem& sDPD, const Parameter& param, const tensor3d& vil);
   void DumpConfigTempera(const double configT);
   void DumpLocalVal(const dpdsystem &sDPD, const Parameter& param);
   void DumpTranject(const dpdsystem& sDPD, const ChemInfo& cheminfo, const int time);

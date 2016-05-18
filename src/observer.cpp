@@ -230,13 +230,17 @@ void Observer::DumpMacroVal(const dpdsystem& sDPD,const Parameter& param){
   fprintf(fp[MACRO_VAL], "%.10g %.10g %.10g %.10g \n", kT, Dif, thick, OrderS);
 }
 
-void Observer::DumpPressure(const dpdsystem& sDPD, const Parameter& param, const double3& vil){
-  const double3 kin_strs = std::accumulate(sDPD.pv, sDPD.pv + Parameter::sys_size, double3(0.0, 0.0, 0.0),
-					   [](const double3& sum, const double3& val) {return sum + val;});
-  const double3 P  = (vil + kin_strs) * param.iL.x * param.iL.y * param.iL.z ;
-  const double Sig = (P.y - (P.x + P.z) * 0.5) * param.L.y;
-  const double Gam = ( (P.x + P.y) * 0.5 - P.z ) * 0.5 * param.L.x * param.L.y;
-  fprintf(fp[PRESSURE], "%.10g %.10g %.10g %.10g %.10g \n", P.x, P.y, P.z, Sig, Gam);
+void Observer::DumpPressure(const dpdsystem& sDPD, const Parameter& param, const tensor3d& vil) {
+  tensor3d press = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  for (int i = 0; i < Parameter::sys_size; i++) for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
+	press[j][k] += sDPD.pv[i][j] * sDPD.pv[i][k];	
+      }
+  auto P = press + vil;
+  for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) {
+      P[i][j] *= param.iL.x * param.iL.y * param.iL.z; 
+    }
+  const double Sig = (P[1][1] - (P[0][0] + P[2][2]) * 0.5) * param.L.y;
+  fprintf(fp[PRESSURE], "%.10g %.10g %.10g %.10g %.10g %.10g %.10g %.10g %.10g %.10g\n", P[0][0], P[0][1], P[0][2], P[1][0], P[1][1], P[1][2], P[2][0], P[2][1], P[2][2], Sig);
 }
 
 void Observer::DumpConfigTempera(const double configT) {

@@ -3,32 +3,167 @@
 #include "parameter.hpp"
 #include "allocate.hpp"
 #include "rng.hpp"
+#include "Eigen/Dense"
 #include <numeric>
 #include <omp.h>
+#include <algorithm>
 
 #define INLINE __attribute__((always_inline))
 
 class F_calculator{
   Interactions itrs;
   BindInfo binfo;
-  std::vector<double3> buf_vir;
+  std::vector<tensor3d> buf_vir;
   std::vector<double>  buf_lap_pot;
+  std::vector<std::vector<tensor3d> > buf_lstress;
   
   int grid_numbtw = -1, numb_band = -1, p_num_band[3] = {-1, -1, -1};
 
+  inline std::array<int, 3> GetLSGrid(const double3& r,
+				      const Parameter& param) const {
+    const std::array<int, 3> grid_id = {
+      static_cast<int>(r.x * param.i_ls_grid_.x),
+      static_cast<int>(r.y * param.i_ls_grid_.y),
+      static_cast<int>(r.z * param.i_ls_grid_.z)
+    };
+    return grid_id;
+  }
+
+  inline int GetLSGrid1d(const std::array<int, 3>& grid_id,
+			 const Parameter& param) const {
+    const auto ret = grid_id[0] + param.ls_grid_num_[0] * (grid_id[1] + grid_id[2] * param.ls_grid_num_[1]);
+#ifdef DEBUG
+    CHECK_EQUATION(ret < param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2], ret);
+#endif
+    return ret;
+  }
+
+  // NOTE: this function is applied for each axis.
+  inline void CalcLSLambdaForEachAxis(std::vector<double>& lambda,
+				      const int j_grid,
+				      const int diff_grid,
+				      const double rj_pos,
+				      const double drji,
+				      const int axis,
+				      const Parameter& param) const {
+    for (int i = 0; i < diff_grid; i++) {
+      const double wall_pos = (i + j_grid) * param.ls_grid_[axis];
+      lambda.push_back((wall_pos - rj_pos) / drji);
+    }
+  }
+
+  inline std::vector<double> CalcLSLambda(const std::array<int, 3>& j_grid,
+					  const std::array<int, 3>& diff_grid,
+					  const double3 rj_pos,
+					  const double3 drji,
+					  const Parameter& param) {
+    std::vector<double> lambda = {0.0};
+    CalcLSLambdaForEachAxis(lambda, j_grid[0], diff_grid[0], rj_pos[0], drji[0], 0, param);
+    CalcLSLambdaForEachAxis(lambda, j_grid[1], diff_grid[1], rj_pos[1], drji[1], 1, param);
+    CalcLSLambdaForEachAxis(lambda, j_grid[2], diff_grid[2], rj_pos[2], drji[2], 2, param);
+    lambda.push_back(1.0);
+    std::sort(lambda.begin(), lambda.end());
+    return lambda;
+  }
+
+  void ApplyPBC(double3& r, const Parameter& param) {
+    r.x -= std::floor(r.x * param.iL.x) * param.L.x;
+    r.y -= std::floor(r.y * param.iL.y) * param.L.y;
+    r.z -= std::floor(r.z * param.iL.z) * param.L.z;
+  }
+  
+  void DistPairForceStress(const double3& rj,
+			   const double3& drji,
+			   const double3& dFji,
+			   const Parameter& param) {
+    const int tid = omp_get_thread_num();
+
+    const auto i_grid = GetLSGrid(rj + drji, param);
+    const auto j_grid = GetLSGrid(rj, param);
+
+    tensor3d stress;
+    for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++)
+	stress[i][j] = drji[i] * dFji[j];
+
+    if (j_grid == i_grid) {
+      // simply add local stress
+      const auto j_grid_1d = GetLSGrid1d(j_grid, param);
+      for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++)
+	  buf_lstress[tid][j_grid_1d][i][j] += stress[i][j];
+    } else {
+      // spread local stress
+      const std::array<int, 3> diff_grid = {
+	i_grid[0] - j_grid[0],
+	i_grid[1] - j_grid[1],
+	i_grid[2] - j_grid[2]
+      };
+      
+      const auto lambda = CalcLSLambda(j_grid, diff_grid, rj, drji, param);
+      const int num_spreaded_cell = lambda.size();
+      for (int i = 1; i < num_spreaded_cell; i++) {
+	auto base_pos = rj + drji * 0.5 * (lambda[i - 1] + lambda[i]);
+	ApplyPBC(base_pos, param);
+	const auto base_grid = GetLSGrid1d(GetLSGrid(base_pos, param), param);
+	const auto d_lambda = lambda[i] - lambda[i - 1];
+	for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++)
+	    buf_lstress[tid][base_grid][j][k] += stress[j][k] * d_lambda;
+      }
+    }
+  }
+
+  void Decompose3N(const double3& rl, // in-plane (ri-rj ^ ri-rk) position
+		   const double3& ri, const double3& rj, const double3& rk,
+		   const double3& Fi, const double3& Fj, const double3& Fk,
+		   const Parameter& param) {
+    // Decompose forces
+    auto dr21 = rj - ri; MinImage(dr21, param); const auto dr21_n = dr21 / dr21.norm2();
+    auto dr41 = rl - ri; MinImage(dr41, param); const auto dr41_n = dr41 / dr41.norm2();
+    auto dr32 = rk - rj; MinImage(dr32, param); const auto dr32_n = dr32 / dr32.norm2();
+    auto dr42 = rl - rj; MinImage(dr42, param); const auto dr42_n = dr42 / dr42.norm2();
+    auto dr43 = rl - rk; MinImage(dr43, param); const auto dr43_n = dr43 / dr43.norm2();
+    
+    Eigen::MatrixXd D(12, 5);
+    D << dr21_n.x, dr41_n.x, 0.0, 0.0, 0.0,
+         dr21_n.y, dr41_n.y, 0.0, 0.0, 0.0,
+         dr21_n.z, dr41_n.z, 0.0, 0.0, 0.0,
+        -dr21_n.x, -dr32_n.x, dr42_n.x, 0.0, 0.0,
+        -dr21_n.y, -dr32_n.y, dr42_n.y, 0.0, 0.0,
+        -dr21_n.z, -dr32_n.z, dr42_n.z, 0.0, 0.0,
+         0.0, 0.0, dr32_n.x, 0.0, -dr43_n.x,
+         0.0, 0.0, dr32_n.y, 0.0, -dr43_n.y,
+         0.0, 0.0, dr32_n.z, 0.0, -dr43_n.z,
+         0.0, -dr41_n.x, 0.0, -dr42_n.x, -dr43_n.x,
+         0.0, -dr41_n.y, 0.0, -dr42_n.y, -dr43_n.y,
+         0.0, -dr41_n.z, 0.0, -dr42_n.z, -dr43_n.z;
+    Eigen::VectorXd F(12);
+    F << Fi.x, Fi.y, Fi.z, Fj.x, Fj.y, Fj.z, Fk.x, Fk.y, Fk.z, 0.0, 0.0, 0.0;
+    Eigen::VectorXd phi = D.colPivHouseholderQr().solve(F);
+    
+    // Distribute local stress
+    const double3 dF21(phi[0] * dr21_n.x, phi[0] * dr21_n.y, phi[0] * dr21_n.z);
+    const double3 dF41(phi[1] * dr41_n.x, phi[1] * dr41_n.y, phi[1] * dr41_n.z);
+    const double3 dF32(phi[2] * dr32_n.x, phi[2] * dr32_n.y, phi[2] * dr32_n.z);
+    const double3 dF42(phi[3] * dr42_n.x, phi[3] * dr42_n.y, phi[3] * dr42_n.z);
+    const double3 dF43(phi[4] * dr43_n.x, phi[4] * dr43_n.y, phi[4] * dr43_n.z);
+    
+    DistPairForceStress(ri, dr21, dF21, param);
+    DistPairForceStress(ri, dr41, dF41, param);
+    DistPairForceStress(rj, dr32, dF32, param);
+    DistPairForceStress(rj, dr42, dF42, param);
+    DistPairForceStress(rk, dr43, dF43, param);    
+  }
+
   INLINE void StoreBondForce(const double3& __restrict dr,
 			     const double& __restrict inv_dr,
-			     double3& d_virial,
+			     tensor3d& d_virial,
 			     double& lap_conf,
 			     double3* __restrict F) {
     const double cf_bond = itrs.cf_spring * (inv_dr - Parameter::i_bleng);
     
     const double3 Fbond(cf_bond * dr.x, cf_bond * dr.y, cf_bond * dr.z);
     
-    d_virial.x += dr.x * Fbond.x;
-    d_virial.y += dr.y * Fbond.y;
-    d_virial.z += dr.z * Fbond.z;
-
+    for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) d_virial[i][j] += dr[i] * Fbond[j];
+    
     lap_conf += itrs.cf_spring * (6.0 * Parameter::i_bleng - 4.0 * inv_dr);
     
     F[0] -= Fbond;
@@ -36,11 +171,11 @@ class F_calculator{
   }
 
   INLINE void StoreBendForce(const double3* __restrict dr,
-			     const double * __restrict inv_dr,
-			     const double * __restrict dist,
-			     double3& d_virial,
-			     double& lap_conf,
-			     double3* __restrict F) {
+			     const double*  __restrict inv_dr,
+			     const double*  __restrict dist,
+			     tensor3d&       __restrict d_virial,
+			     double&        __restrict lap_conf,
+			     double3*       __restrict F) {
     const double	inv_dr_prod = inv_dr[0] * inv_dr[1];
     const double	inv_dist[2] = {inv_dr[0] * inv_dr[0],
 				       inv_dr[1] * inv_dr[1]};
@@ -56,9 +191,8 @@ class F_calculator{
 		       cf_b * (dr[0].y - cf_crs[1] * dr[1].y),
 		       cf_b * (dr[0].z - cf_crs[1] * dr[1].z));
     
-    d_virial.x += dr[0].x * Ftb0.x + dr[1].x * Ftb1.x;
-    d_virial.y += dr[0].y * Ftb0.y + dr[1].y * Ftb1.y;
-    d_virial.z += dr[0].z * Ftb0.z + dr[1].z * Ftb1.z;
+    for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++)
+				  d_virial[i][j] += dr[0][i] * Ftb0[j] + dr[1][i] * Ftb1[j];
 
     lap_conf += 2.0 * cf_b * inv_dist[0] * inv_dist[1] * (in_prod * (in_prod + 2.0 * (dist[0] + dist[1])) + dist[0] * dist[1]);    
     
@@ -70,7 +204,9 @@ class F_calculator{
   INLINE void ClearForce(double3* force) {
     for (int i = 0; i < Parameter::sys_size; i++) force[i].clear();
     buf_lap_pot.assign(buf_lap_pot.size(), 0.0);
-    buf_vir.assign(buf_vir.size(), double3(0.0));
+    buf_vir.assign(buf_vir.size(), {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+    for (size_t i = 0; i < buf_lstress.size(); i++)
+      buf_lstress[i].assign(buf_lstress[i].size(), {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
   }
 
   void CheckForce(double3* force) {
@@ -169,7 +305,7 @@ class F_calculator{
   template<int bond_n>
   void CalcBondBend(const double3* __restrict pr,
 		    double3* __restrict force,
-		    double3& __restrict d_virial,
+		    tensor3d& __restrict d_virial,
 		    double&  __restrict lap_conf,
 		    const int beg_idx,
 		    const int* elem_idx,
@@ -204,7 +340,7 @@ class F_calculator{
     }
   }
   
-public:
+  // public:
   explicit F_calculator(const Parameter& param);
   
   void AddConservForce(const double3*  __restrict pr,
@@ -248,8 +384,14 @@ public:
     return numer / lap_pot;
   }
 
-  double3 DumpVirial() const {
-    return std::accumulate(buf_vir.cbegin(), buf_vir.cend(), double3(0.0, 0.0, 0.0));
+  tensor3d DumpVirial() const {
+    tensor3d result = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    const int th_numb = omp_get_max_threads();
+    for (int tid = 0; tid < th_numb; tid++)
+      for (int j = 0; j < 3; j++) 
+	for (int k = 0; k < 3; k++)
+	  result[j][k] += buf_vir[tid][j][k];
+    return result;
   }
 };
 

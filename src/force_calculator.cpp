@@ -1,13 +1,13 @@
 #include "force_calculator.hpp"
 
 template<>
-void F_calculator::CalcBondBend<2>(const double3* __restrict	pr,
-				   double3* __restrict		force,
-				   double3& __restrict          d_virial,
-				   double&  __restrict          lap_conf,
+void F_calculator::CalcBondBend<2>(const double3*   __restrict	pr,
+				   double3*	    __restrict	force,
+				   tensor3d&	    __restrict  d_virial,
+				   double&	    __restrict  lap_conf,
 				   const int			beg_idx,
-				   const int*			elem_idx,
-				   const Parameter&		param) {
+				   const int*	    __restrict	elem_idx,
+				   const Parameter& __restrict	param) {
   const int l_dst[2] = {elem_idx[beg_idx], elem_idx[beg_idx + 1]};
   double3 dr(pr[l_dst[1]].x - pr[l_dst[0]].x,
 	     pr[l_dst[1]].y - pr[l_dst[0]].y,
@@ -18,9 +18,8 @@ void F_calculator::CalcBondBend<2>(const double3* __restrict	pr,
   const double cf_bond = itrs.cf_spring * (inv_dr - Parameter::i_bleng);
   const double3 Fbond(cf_bond * dr.x, cf_bond * dr.y, cf_bond * dr.z);
   
-  d_virial.x += dr.x * Fbond.x;
-  d_virial.y += dr.y * Fbond.y;
-  d_virial.z += dr.z * Fbond.z;
+  for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++)
+	d_virial[i][j] += dr[i] * Fbond[j];
 
   lap_conf   += itrs.cf_spring * (6.0 * Parameter::i_bleng - 4.0 * inv_dr);
   
@@ -31,7 +30,7 @@ void F_calculator::CalcBondBend<2>(const double3* __restrict	pr,
 template<>
 void F_calculator::CalcBondBend<1>(const double3* __restrict	pr,
 				   double3*       __restrict    force,
-				   double3&       __restrict    d_virial,
+				   tensor3d& __restrict         d_virial,
 				   double&        __restrict    lap_conf,			   
 				   const int			beg_idx,
 				   const int*			elem_idx,
@@ -42,8 +41,13 @@ F_calculator::F_calculator(const Parameter& param) {
   itrs  = param.GetIntractions();
   binfo = param.GetBindInform();
   const int th_numb   = omp_get_max_threads();
-  buf_vir.resize(th_numb, double3(0.0, 0.0, 0.0));
+  buf_vir.resize(th_numb, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
   buf_lap_pot.resize(th_numb, 0.0);
+  buf_lstress.resize(th_numb);
+  const auto all_ls_grid = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
+  for (int i = 0; i < th_numb; i++) {
+    buf_lstress[i].resize(all_ls_grid, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+  }
   DevideCell(param);
 }
 
@@ -129,15 +133,16 @@ void F_calculator::CountNearWater(const int& itr_id,
   }
 }
 
-void F_calculator::CalcForceHalf(const double3*  __restrict pr,
-				 const par_prop* __restrict prop,
-				 double3*        __restrict force,
-				 const CellList&            clist,
-				 const Parameter&           param,
-				 const int                  call_num) {
-  double3 sum_vir(0.0);     double d_lap_pot(0.0);
+void F_calculator::CalcForceHalf(const double3*   __restrict pr,
+				 const par_prop*  __restrict prop,
+				 double3*         __restrict force,
+				 const CellList&  __restrict clist,
+				 const Parameter& __restrict param,
+				 const int                   call_num) {
+  tensor3d sum_vir = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  double d_lap_pot(0.0);
   const int	tid	 = omp_get_thread_num();
-  const int	beg_grid = grid_numbtw * (tid * numb_band + p_num_band[call_num]) ;
+  const int	beg_grid = grid_numbtw * (tid * numb_band + p_num_band[call_num]);
   const int	end_grid = beg_grid + grid_numbtw * p_num_band[call_num + 1];
   const int	begi	 = clist.buck_addrs[beg_grid];
   const int	endi	 = clist.buck_addrs[end_grid];
@@ -154,13 +159,13 @@ void F_calculator::CalcForceHalf(const double3*  __restrict pr,
       bef_grid = tar_grid;
     }
     begj++;
-    
     const int endj = clist.n_near_prtcl[tar_grid];
+    
     for (int j = begj; j < endj; j++) {
       const int pj = clist.near_prtcl_idx[tar_grid][j];
       double3 dr(ri.x - pr[pj].x, ri.y - pr[pj].y, ri.z - pr[pj].z);
       MinImage(dr, param);
-      const double dr2  = dr.x*dr.x + dr.y*dr.y + dr.z*dr.z;
+      const double dr2  = dr.x * dr.x + dr.y * dr.y + dr.z * dr.z;
       if (dr2 < 1.0) {
 #ifdef DEBUG
 	/*#pragma omp critical
@@ -179,9 +184,11 @@ void F_calculator::CalcForceHalf(const double3*  __restrict pr,
 	sumF_a    += dF_a;
 	force[pj] -= dF_a;
 	
-	sum_vir.x += dF_a.x*dr.x;
-	sum_vir.y += dF_a.y*dr.y;
-	sum_vir.z += dF_a.z*dr.z;
+	for (int k = 0; k < 3; k++) for (int l = 0; l < 3; l++) sum_vir[k][l] += dF_a[k] * dr[l];
+
+#ifdef CALC_LOC_STRESS
+	DistPairForceStress(pr[pj], dr, dF_a, param);
+#endif
 	
 	d_lap_pot += cf_c * (6.0 - 4.0 * inv_dr);
 	
@@ -197,8 +204,8 @@ void F_calculator::CalcForceHalf(const double3*  __restrict pr,
     } //end j loop
     force[pi] += sumF_a;
   } //end i loop  
-  
-  buf_vir[tid]     += sum_vir;
+
+  for (int k = 0; k < 3; k++) for (int l = 0; l < 3; l++) buf_vir[tid][k][l] += sum_vir[k][l];
   buf_lap_pot[tid] += d_lap_pot;
 }
 
@@ -256,7 +263,7 @@ void F_calculator::CalcForceInAmp(const double3* __restrict	pr,
 				  double3* __restrict		force,
 				  const ChemInfo&		cheminfo,
 				  const Parameter&		param) {
-  double3 d_virial(0.0); double d_lap_potent = 0.0;
+  tensor3d d_virial = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}; double d_lap_potent = 0.0;
   for (int i = 0; i < Parameter::sys_size; i++) {
     if (cheminfo.lipid_unit[i] == Parameter::REAC_PART) {
       if (cheminfo.prtcl_chem[i]) {
@@ -274,7 +281,8 @@ void F_calculator::CalcForceInAmp(const double3* __restrict	pr,
     }
   }
   
-  buf_vir[0] += d_virial;
+  for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++)
+       buf_vir[0][i][j] += d_virial[i][j];
   buf_lap_pot[0] += d_lap_potent;
 }
 

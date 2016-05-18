@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <array>
 #include "mvector3.hpp"
 
 //modes
@@ -27,6 +28,8 @@
 
 //visc
 // #define VISC_KERN_SQRT
+
+#define CALC_LOC_STRESS
 
 //structs
 enum par_prop {
@@ -72,6 +75,16 @@ struct ChemInfo{
   float *near_water;
   float_int *near_info;
 };
+
+typedef std::array<std::array<double, 3>, 3> tensor3d;
+
+inline const tensor3d operator + (const tensor3d& lhs, const tensor3d& rhs) {
+  tensor3d ret = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) {
+      ret[i][j] = lhs[i][j] + rhs[i][j];
+    }
+  return ret;
+}
 
 #define CHECK_FILE_OPEN(fin)					\
   do {								\

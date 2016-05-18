@@ -17,7 +17,7 @@ struct vector3{
   //constructors
   INLINE vector3<T>() : x(0.0), y(0.0), z(0.0) {}
   INLINE vector3<T>(const vector3<T> &rhs) : x(rhs.x), y(rhs.y), z(rhs.z) {}
-  INLINE explicit vector3<T>(const T &r) : x(r), y(r), z(r) {}
+  INLINE explicit vector3<T>(const T  r) : x(r), y(r), z(r) {}
   INLINE explicit vector3<T>(const T *p) {
     x = p[0]; y = p[1]; z = p[2];
   }
@@ -31,6 +31,7 @@ struct vector3{
     x = y = z = s;
     return (*this);
   }
+  
   INLINE const vector3<T> operator + (const vector3<T>& obj) const {
     return vector3<T>(x + obj.x, y + obj.y, z + obj.z);
   }
@@ -45,15 +46,24 @@ struct vector3{
     x -= obj.x; y -= obj.y; z -= obj.z;
     return *this;
   }
+  
   INLINE const vector3<T> operator * (const T cf) const {
-    return vector3<T>(x * cf, y * cf,z * cf);
-  }
-  INLINE const T operator * (const vector3<T>& obj) const {
-    return x * obj.x + y * obj.y + z * obj.z;
+    return vector3<T>(x * cf, y * cf, z * cf);
   }
   INLINE friend const vector3<T> operator * (const T cf, const vector3<T>& obj) {
     return vector3<T>(obj.x * cf, obj.y * cf, obj.z * cf);
   }
+  INLINE const T operator * (const vector3<T>& obj) const {
+    return x * obj.x + y * obj.y + z * obj.z;
+  }
+  
+  INLINE const vector3<T> operator / (const T cf) const {
+    return vector3<T>(x / cf, y / cf, z / cf);
+  }
+  INLINE friend const vector3<T> operator / (const T cf, const vector3<T>& obj) {
+    return vector3<T>(cf / obj.x, cf / obj.y, cf / obj.z);
+  }
+
   INLINE const vector3<T>& operator *= (const T cf) {
     x *= cf; y *= cf; z *= cf;
     return *this;
@@ -62,12 +72,8 @@ struct vector3{
     x /= cf; y /= cf; z /= cf;
     return *this;
   }
-  INLINE friend const vector3<T> operator / (const T cf, const vector3<T>& obj) {
-    return vector3<T>(cf / obj.x, cf / obj.y, cf / obj.z);
-  }
   
-  
-  INLINE T &operator [] (const int i) {
+  INLINE T& operator [] (const int i) {
     return (&x)[i];
   }
 
@@ -115,7 +121,7 @@ struct vector3{
   }
   INLINE const T norm2() const {
     const T dr2 = (*this)*(*this);
-    return sqrt(dr2);
+    return std::sqrt(dr2);
   }
   INLINE const T fastnorm2() const {
     const T dr2 = (*this)*(*this);

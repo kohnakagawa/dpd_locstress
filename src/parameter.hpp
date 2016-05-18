@@ -42,13 +42,19 @@ class Parameter {
     dt_c      = dt * static_cast<double>(COL_FREQ);
     inv_dt_sq = 1.0 / std::sqrt(dt);
     
-    for (int i = 0; i < 3; i++)
-      grid_numb[i] = static_cast<int>(L[i] / grid_leng[i]);
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++) {
+      grid_numb[i]    = static_cast<int>(L[i] / grid_leng[i]);
+      ls_grid_num_[i] = static_cast<int>(L[i] / ls_grid_[i]);
+    }
+      
+    for (int i = 0; i < 3; i++) {
       grid_leng[i] = L[i] / grid_numb[i];
-    
+      ls_grid_[i]  = L[i] / ls_grid_num_[i];
+    }
     all_grid = grid_numb[0] * grid_numb[1] * grid_numb[2];
+    
     i_grid_leng = 1.0 / grid_leng;
+    i_ls_grid_  = 1.0 / ls_grid_;
   }
   
   void CalculateGammaWithHarmonicMean(const int i, const int j) {
@@ -194,8 +200,8 @@ public:
   double dt_c		= std::numeric_limits<double>::signaling_NaN();
   
   double3 L, iL, hL, ihL, grid_leng, i_grid_leng;
-  double3 ls_grid_;
-  std::array<int, 3> ls_grid_num;
+  double3 ls_grid_, i_ls_grid_;
+  std::array<int, 3> ls_grid_num_;
   
   int grid_numb[3] = {-1, -1, -1}, all_grid = -1;
   float coef_prob[3] = {-1.0, -1.0, -1.0}, prob_cutof = -1.0;
@@ -207,12 +213,14 @@ public:
       for (int j = 0; j < 3; j++)
 	intrparams.cf_repul[i][j] = intrparams.cf_gamma[i][j] = intrparams.cf_sigma[i][j] = std::numeric_limits<double>::signaling_NaN();
     
-    intrparams.cf_bend		= std::numeric_limits<double>::signaling_NaN();
-    intrparams.cf_spring	= std::numeric_limits<double>::signaling_NaN();
+    intrparams.cf_bend	 = std::numeric_limits<double>::signaling_NaN();
+    intrparams.cf_spring = std::numeric_limits<double>::signaling_NaN();
     
-    binfo.bind_center.x		= binfo.bind_center.y = binfo.bind_center.z = std::numeric_limits<double>::signaling_NaN();
-    binfo.bind_radius		= std::numeric_limits<double>::signaling_NaN();
-    binfo.bind_coef		= std::numeric_limits<double>::signaling_NaN();
+    binfo.bind_center.x	= binfo.bind_center.y = binfo.bind_center.z = std::numeric_limits<double>::signaling_NaN();
+    binfo.bind_radius	= std::numeric_limits<double>::signaling_NaN();
+    binfo.bind_coef	= std::numeric_limits<double>::signaling_NaN();
+
+    ls_grid_num_ = {-1, -1, -1};
   }
 
   Interactions GetIntractions() const {
