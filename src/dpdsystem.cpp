@@ -408,15 +408,24 @@ void dpdsystem::Execute(const int all_time,
 #endif
       p_observer->DumpForceDecompError(f_calc.DumpFdecompError());
     }
+    
     if (time % time_step_vt == 0) {
       p_observer->DumpPressure(*this, *p_param, f_calc.DumpVirial());
+      p_observer->DumpVirialError(f_calc.DumpVirialError());
       p_observer->DumpConfigTempera(f_calc.DumpConfigT(force));
     }
-    
-    p_observer->AddLocalStress(*this, *p_param, f_calc.DumpCurLocStress());
-  } //end of main loop
 
+#ifdef CALC_LOC_STRESS
+    if (time >= Parameter::EQUIL_TIME) {
+      p_observer->AddLocalStress(*this, *p_param, f_calc.DumpCurLocStress());
+    }
+#endif
+    
+  } // end of main loop
+
+#ifdef CALC_LOC_STRESS
   p_observer->DumpLocalStress(*p_param);
+#endif
   p_observer->DumpFinalConfig(*this, cheminfo, end_time);
 }
 

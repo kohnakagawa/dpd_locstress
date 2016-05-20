@@ -28,6 +28,10 @@
 #warning "BIND POTENTIAL IS ADDED."
 #endif
 
+#ifdef CALC_LOC_STRESS
+#warning "WILL CALCULATE LOCAL STRESS."
+#endif
+
 namespace {
   void warning(const int argc) {
     if (argc != 2) {

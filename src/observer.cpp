@@ -48,6 +48,8 @@ std::string Observer::Type2Fname(const int type, const Parameter& param) {
     return param.cur_dir + "/loc_stress.txt";
   case DECOMP_ERROR:
     return param.cur_dir + "/f_decomp_error.txt";
+  case VIRIAL_ERROR:
+    return param.cur_dir + "/virial_error.txt";
   default:
     std::cerr << "Unknown file type.\n";
     std::exit(1);
@@ -241,8 +243,9 @@ void Observer::DumpPressure(const dpdsystem& sDPD, const Parameter& param, const
 	press[j][k] += sDPD.pv[i][j] * sDPD.pv[i][k];	
       }
   auto P = press + vil;
+  const auto r_box_vol = param.iL.x * param.iL.y * param.iL.z;
   for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) {
-      P[i][j] *= param.iL.x * param.iL.y * param.iL.z; 
+      P[i][j] *= r_box_vol;
     }
   const double Sig = (P[1][1] - (P[0][0] + P[2][2]) * 0.5) * param.L.y;
   fprintf(fp[PRESSURE], "%.10g %.10g %.10g %.10g %.10g %.10g %.10g %.10g %.10g %.10g\n", P[0][0], P[0][1], P[0][2], P[1][0], P[1][1], P[1][2], P[2][0], P[2][1], P[2][2], Sig);
@@ -337,6 +340,11 @@ void Observer::DumpForceDecompError(const double error) {
   fprintf(fp[DECOMP_ERROR], "%.10g\n", error);
 }
 
+void Observer::DumpVirialError(const tensor3d& err) {
+  fprintf(fp[VIRIAL_ERROR], "%.10g %.10g %.10g %.10g %.10g %.10g %.10g %.10g %.10g\n",
+	  err[0][0], err[0][1], err[0][2], err[1][0], err[1][1], err[1][2], err[2][0], err[2][1], err[2][2]);
+}
+
 void Observer::AddLocalStress(const dpdsystem& sDPD,
 			      const Parameter& param,
 			      const std::vector<std::vector<tensor3d> >& buf_lstress) {
@@ -348,6 +356,7 @@ void Observer::AddLocalStress(const dpdsystem& sDPD,
       for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
 	  loc_stress_sum[g][j][k] += buf_lstress[i][g][j][k];
 	}
+  
   // kinetic term
   for (int pi = 0; pi < Parameter::sys_size; pi++)
     for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
@@ -358,7 +367,8 @@ void Observer::AddLocalStress(const dpdsystem& sDPD,
 
 void Observer::DumpLocalStress(const Parameter& param) {
   const int grid_num = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
-  const double r_cnt_ls = 1.0 / cnt_ls;
+  const double ls_box_vol = param.ls_grid_.x * param.ls_grid_.y * param.ls_grid_.z;
+  const double r_cnt_ls = 1.0 / (cnt_ls * ls_box_vol);
   for (int i = 0; i < grid_num; i++) {
     for (int j = 0; j < 3; j++) {
       for (int k = 0; k < 3; k++) {

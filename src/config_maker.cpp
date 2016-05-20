@@ -272,14 +272,17 @@ class ConfigMaker {
   
   void CheckConfigurationIsValid(const Parameter& param) {
     // position range check
+    std::cout << "Range check.\n";
     for (const auto& ptcl : ptcl_buffer_) {
       for (int j = 0; j < 3; j++) {
 	CHECK_EQUATION(ptcl.pos[j] <= param.L[j], ptcl.pos[j]);
 	CHECK_EQUATION(ptcl.pos[j] >= 0.0, ptcl.pos[j]);
       }
     }
+    std::cout << "Done.\n\n";
     
     // temperature check
+    std::cout << "Temperature check.\n";
     double3 vel2_sum = std::accumulate(ptcl_buffer_.cbegin(), ptcl_buffer_.cend(), double3(0.0, 0.0, 0.0),
 				       [](const double3& sum, const PtclBuffer& val) {
 					 return double3(sum.x + val.vel.x * val.vel.x,
@@ -287,10 +290,16 @@ class ConfigMaker {
 							sum.z + val.vel.z * val.vel.z);
 				       });
     vel2_sum /= Parameter::sys_size;
-    std::cerr << "Temperature = " << vel2_sum << std::endl;
+    
+    std::cout << "Temperature = " << vel2_sum << std::endl;
+    std::cout << "Reference temperature = " << param.tempera << std::endl;
+    std::cout << "Done.\n\n";
 
     // topology check
+    std::cout << "Topology check.\n";
     int num_in_unit[Parameter::ALL_UNIT_N] = {0};
+    std::vector<int> num_in_pidx(param.ampN, 0), num_in_lidx(param.ampN, 0);
+    
     for (const auto& ptcl : ptcl_buffer_) {
       if (ptcl.prop == Water) {
 	CHECK_EQUATION(ptcl.p_chem == false, ptcl.p_chem);
@@ -311,6 +320,8 @@ class ConfigMaker {
 	CHECK_EQUATION(ptcl.p_idx < param.ampN, ptcl.p_idx);
 
 	num_in_unit[ptcl.l_unit]++;
+	num_in_pidx[ptcl.p_idx]++;
+	num_in_lidx[ptcl.l_idx]++;
       }
     }
     
@@ -319,6 +330,12 @@ class ConfigMaker {
     
     for (int i = 0; i < Parameter::ALL_UNIT_N; i++)
       CHECK_EQUATION(num_in_unit[i] == param.ampN, num_in_unit[i]);
+
+    for (int i = 0; i < param.ampN; i++) {
+      CHECK_EQUATION(num_in_pidx[i] == Parameter::ALL_UNIT_N, num_in_pidx[i]);
+      CHECK_EQUATION(num_in_lidx[i] == Parameter::ALL_UNIT_N, num_in_lidx[i]);
+    }
+    std::cout << "Done.\n\n";
   }
 
   void WritePtclData(std::ostream& ost) const {
@@ -342,7 +359,8 @@ public:
     // prng
     std::mt19937 mt_rnd(time(nullptr));
     std::normal_distribution<> normal(0.0, std::sqrt(param.tempera));
-    std::cout << "Now create particle configuration.\n";
+    std::cout << "Now create particle configuration.\n\n";
+    
     std::cout << "Info:\n";
     param.DumpAllParam(std::cout);
     std::cout << std::endl;

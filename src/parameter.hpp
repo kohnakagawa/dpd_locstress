@@ -15,15 +15,15 @@ class Parameter {
     std::ifstream fin(fname.c_str());
     CHECK_FILE_OPEN(fin);
 
-    double rho = 0.0;
-    fin >> rho >> tempera >> sys_size >> headN >> tailN >> dt >> grid_leng.x >> L.y >> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof >> ls_grid_.x >> ls_lambda;
-    L.z = L.x = std::sqrt(sys_size / (rho * L.y));
-    grid_leng.z = grid_leng.y = grid_leng.x; // ASSUME: grid_leng.x = grid_leng.y = grid_leng.z
+    fin >> tempera >> sys_size >> headN >> tailN >> dt >> grid_leng.x >> L.x >> L.y >> L.z >> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof >> ls_grid_.x >> ls_lambda;
+
+    CHECK_FILESTREAM_IS_OK(fin);
+    CHECK_FILE_IS_EOF(fin);
+    
+    grid_leng.z = grid_leng.y = grid_leng.x;
     ls_grid_.z = ls_grid_.y = ls_grid_.x;
     
     ampN = (headN < tailN) ? headN : tailN;
-    
-    CHECK_FILE_IS_EOF(fin);
 
     if (HYPHIL_N > REAC_PART) {
       hN = REAC_PART * headN + (HYPHIL_N - REAC_PART) * tailN;
@@ -75,6 +75,7 @@ class Parameter {
 	>> intrparams.cf_repul[0][0] >> intrparams.cf_repul[0][1] >> intrparams.cf_repul[0][2]
 	>> intrparams.cf_repul[1][1] >> intrparams.cf_repul[1][2] >> intrparams.cf_repul[2][2];
     
+    CHECK_FILESTREAM_IS_OK(fin);
     CHECK_FILE_OPEN(fin);
 
     intrparams.cf_repul[1][0] = intrparams.cf_repul[0][1];
@@ -108,10 +109,13 @@ class Parameter {
     std::ifstream fin(fname.c_str());
     CHECK_FILE_OPEN(fin);
     fin >> binfo.bind_radius >> binfo.bind_coef >> binfo.bind_center.x >> binfo.bind_center.y >> binfo.bind_center.z;
+    CHECK_FILESTREAM_IS_OK(fin);
     CHECK_FILE_IS_EOF(fin);
   }
 
   void CheckMacroParam() const {
+    CHECK_EQUATION(sys_size > 0, sys_size);
+
     CHECK_EQUATION(wN > 0, wN);
     CHECK_EQUATION(hN > 0, hN);
     CHECK_EQUATION(bN > 0, bN);
@@ -119,7 +123,6 @@ class Parameter {
 
     CHECK_EQUATION(tailN > 0, tailN);
     CHECK_EQUATION(headN > 0, headN);
-    CHECK_EQUATION(sys_size > 0, sys_size);
     
     CHECK_EQUATION(std::isfinite(dt), dt);
     CHECK_EQUATION(std::isfinite(tempera), tempera);
@@ -127,30 +130,24 @@ class Parameter {
     CHECK_EQUATION(std::isfinite(dt_c), dt_c);
     CHECK_EQUATION(std::isfinite(ls_lambda), ls_lambda);
     
-    CHECK_EQUATION(L.isfinite3(), L);
-    CHECK_EQUATION(iL.isfinite3(), iL);
-    CHECK_EQUATION(hL.isfinite3(), hL);
-    CHECK_EQUATION(grid_leng.isfinite3(), grid_leng);
-    CHECK_EQUATION(i_grid_leng.isfinite3(), i_grid_leng);
+    CHECK_EQUATION(L > double3(0.0), L);
+    CHECK_EQUATION(iL > double3(0.0), iL);
+    CHECK_EQUATION(hL > double3(0.0), hL);
+    CHECK_EQUATION(ihL > double3(0.0), ihL);
+    CHECK_EQUATION(grid_leng > double3(0.0), grid_leng);
+    CHECK_EQUATION(i_grid_leng > double3(0.0), i_grid_leng);
+    CHECK_EQUATION(ls_grid_ > double3(0.0), ls_grid_);
+    CHECK_EQUATION(i_ls_grid_ > double3(0.0), i_ls_grid_);
 
-    CHECK_EQUATION(std::isfinite(grid_numb[0]), grid_numb[0]);
-    CHECK_EQUATION(std::isfinite(grid_numb[1]), grid_numb[1]);
-    CHECK_EQUATION(std::isfinite(grid_numb[2]), grid_numb[2]);
-    CHECK_EQUATION(std::isfinite(all_grid), all_grid);
-    
+    CHECK_EQUATION(ls_grid_num_[0] > 0, ls_grid_num_[0]);
+    CHECK_EQUATION(ls_grid_num_[1] > 0, ls_grid_num_[1]);
+    CHECK_EQUATION(ls_grid_num_[2] > 0, ls_grid_num_[2]);
+
     CHECK_EQUATION(grid_numb[0] > 0, grid_numb[0]);
     CHECK_EQUATION(grid_numb[1] > 0, grid_numb[1]);
     CHECK_EQUATION(grid_numb[2] > 0, grid_numb[2]);
-    CHECK_EQUATION(all_grid, all_grid);
-
-    CHECK_EQUATION(grid_leng[0] > 0.0, grid_leng[0]);
-    CHECK_EQUATION(grid_leng[1] > 0.0, grid_leng[1]);
-    CHECK_EQUATION(grid_leng[2] > 0.0, grid_leng[2]);
-
-    CHECK_EQUATION(i_grid_leng[0] > 0.0, i_grid_leng[0]);
-    CHECK_EQUATION(i_grid_leng[1] > 0.0, i_grid_leng[1]);
-    CHECK_EQUATION(i_grid_leng[2] > 0.0, i_grid_leng[2]);
-
+    CHECK_EQUATION(all_grid > 0, all_grid);
+    
     CHECK_EQUATION(ls_grid_[0] > 0.0, ls_grid_[0]);
     CHECK_EQUATION(ls_grid_[1] > 0.0, ls_grid_[1]);
     CHECK_EQUATION(ls_grid_[2] > 0.0, ls_grid_[2]);
@@ -159,10 +156,6 @@ class Parameter {
     CHECK_EQUATION(i_ls_grid_[1] > 0.0, i_ls_grid_[1]);
     CHECK_EQUATION(i_ls_grid_[2] > 0.0, i_ls_grid_[2]);
     
-    CHECK_EQUATION(ls_grid_num_[0] > 0, ls_grid_num_[0]);
-    CHECK_EQUATION(ls_grid_num_[1] > 0, ls_grid_num_[1]);
-    CHECK_EQUATION(ls_grid_num_[2] > 0, ls_grid_num_[2]);
-
     CHECK_EQUATION(coef_prob[0] > 0.0, coef_prob[0]);
     CHECK_EQUATION(coef_prob[1] > 0.0, coef_prob[1]);
     CHECK_EQUATION(coef_prob[1] < 1.0, coef_prob[1]);
@@ -228,9 +221,10 @@ public:
   
   double3 L, iL, hL, ihL, grid_leng, i_grid_leng;
   double3 ls_grid_, i_ls_grid_;
-  std::array<int, 3> ls_grid_num_;
   
   int grid_numb[3] = {-1, -1, -1}, all_grid = -1;
+  std::array<int, 3> ls_grid_num_;
+
   float coef_prob[3] = {-1.0, -1.0, -1.0}, prob_cutof = -1.0;
 
   explicit Parameter(char* cur_dir_) {
@@ -273,26 +267,11 @@ public:
   void DumpAllParam(std::ostream& ost) const {
 #define PRT_WITH_TAG(arg) ost << #arg << " = " << arg << std::endl;
     PRT_WITH_TAG(cur_dir);
-    
-    PRT_WITH_TAG(ALL_UNIT_N);
-    PRT_WITH_TAG(REAC_PART);
-    PRT_WITH_TAG(TAIL_PART);
-    
-    PRT_WITH_TAG(wN); PRT_WITH_TAG(bN); PRT_WITH_TAG(hN); PRT_WITH_TAG(ampN);
 
-    PRT_WITH_TAG(tailN); PRT_WITH_TAG(headN);
-
-    PRT_WITH_TAG(dt); PRT_WITH_TAG(tempera); PRT_WITH_TAG(inv_dt_sq);
-    PRT_WITH_TAG(L); PRT_WITH_TAG(iL); PRT_WITH_TAG(hL); PRT_WITH_TAG(ihL);
-    PRT_WITH_TAG(grid_leng); PRT_WITH_TAG(i_grid_leng);
-    PRT_WITH_TAG(grid_numb[0]); PRT_WITH_TAG(grid_numb[1]); PRT_WITH_TAG(grid_numb[2]);
-    PRT_WITH_TAG(all_grid);
-    
-    ost << "chemical parameters " << std::endl;
-    PRT_WITH_TAG(coef_prob[0]);
-    PRT_WITH_TAG(coef_prob[1]);
-    PRT_WITH_TAG(coef_prob[2]);
-    PRT_WITH_TAG(prob_cutof);
+    ost << "bind information" << std::endl;
+    PRT_WITH_TAG(binfo.bind_center);
+    PRT_WITH_TAG(binfo.bind_radius);
+    PRT_WITH_TAG(binfo.bind_coef);
 
     ost << "interactions" << std::endl;
     for(int i = 0; i < 3; i++)
@@ -301,18 +280,44 @@ public:
       ost << "gamma " << intrparams.cf_gamma[i][0] << " " << intrparams.cf_gamma[i][1] << " " << intrparams.cf_gamma[i][2] << std::endl;
     for(int i = 0; i < 3; i++)
       ost << "repul " << intrparams.cf_repul[i][0] << " " << intrparams.cf_repul[i][1] << " " << intrparams.cf_repul[i][2] << std::endl;
-
     PRT_WITH_TAG(intrparams.cf_spring);
     PRT_WITH_TAG(intrparams.cf_bend);
 
+    PRT_WITH_TAG(HYPHIL_N);
+    PRT_WITH_TAG(HYPHOB_N);
+    PRT_WITH_TAG(ALL_UNIT_N);
+    PRT_WITH_TAG(REAC_PART);
+    PRT_WITH_TAG(TAIL_PART);
+    PRT_WITH_TAG(BUF_SIZE);
+    PRT_WITH_TAG(COL_FREQ);
+    PRT_WITH_TAG(EQUIL_TIME);
+    
     PRT_WITH_TAG(b_leng);
+    PRT_WITH_TAG(i_bleng);
     PRT_WITH_TAG(ch_leng);
+    PRT_WITH_TAG(sys_size);
 
-    ost << "bind information" << std::endl;
-    PRT_WITH_TAG(binfo.bind_center);
-    PRT_WITH_TAG(binfo.bind_radius);
-    PRT_WITH_TAG(binfo.bind_coef);
+    const double rho = sys_size / (L.x * L.y * L.z);
+    PRT_WITH_TAG(rho);
+    
+    PRT_WITH_TAG(wN); PRT_WITH_TAG(bN); PRT_WITH_TAG(hN); PRT_WITH_TAG(ampN);
+    PRT_WITH_TAG(tailN); PRT_WITH_TAG(headN);
 
+    PRT_WITH_TAG(dt); PRT_WITH_TAG(tempera); PRT_WITH_TAG(inv_dt_sq);
+    PRT_WITH_TAG(dt_c); PRT_WITH_TAG(ls_lambda);
+    
+    PRT_WITH_TAG(L); PRT_WITH_TAG(iL); PRT_WITH_TAG(hL); PRT_WITH_TAG(ihL);
+    PRT_WITH_TAG(grid_leng); PRT_WITH_TAG(i_grid_leng);
+    PRT_WITH_TAG(ls_grid_); PRT_WITH_TAG(i_ls_grid_);
+    
+    PRT_WITH_TAG(grid_numb[0]); PRT_WITH_TAG(grid_numb[1]); PRT_WITH_TAG(grid_numb[2]);
+    PRT_WITH_TAG(all_grid);
+    PRT_WITH_TAG(ls_grid_num_[0]); PRT_WITH_TAG(ls_grid_num_[1]); PRT_WITH_TAG(ls_grid_num_[2]);
+    
+    PRT_WITH_TAG(coef_prob[0]);
+    PRT_WITH_TAG(coef_prob[1]);
+    PRT_WITH_TAG(coef_prob[2]);
+    PRT_WITH_TAG(prob_cutof);
 #undef PRT_WITH_TAG
   }
 

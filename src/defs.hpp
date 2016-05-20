@@ -86,6 +86,15 @@ inline const tensor3d operator + (const tensor3d& lhs, const tensor3d& rhs) {
   return ret;
 }
 
+inline const tensor3d operator - (const tensor3d& lhs, const tensor3d& rhs) {
+  tensor3d ret = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) {
+      ret[i][j] = lhs[i][j] - rhs[i][j];
+    }
+  return ret;
+}
+
+
 #define CHECK_FILE_OPEN(fin)					\
   do {								\
     if (!fin) {							\
@@ -93,7 +102,16 @@ inline const tensor3d operator + (const tensor3d& lhs, const tensor3d& rhs) {
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;	\
       std::exit(1);						\
     }								\
-  } while(false)
+  } while (false)
+
+#define CHECK_FILESTREAM_IS_OK(fin)				\
+  do {								\
+    if (fin.fail()) {						\
+      std::cerr << "There is a problem in file stream.\n";	\
+      std::cerr << __FILE__ << " " << __LINE__ << std::endl;	\
+      std::exit(1);						\
+    }								\
+  } while (false)
 
 #define CHECK_FILE_IS_EOF(fin)					\
   do {								\
@@ -104,7 +122,7 @@ inline const tensor3d operator + (const tensor3d& lhs, const tensor3d& rhs) {
       std::cerr << __FILE__  << " " << __LINE__ << std::endl;	\
       std::exit(1);						\
     }								\
-  } while(false)
+  } while (false)
 
 #define CHECK_EQUATION(eqa, val)					\
   do {									\
@@ -114,7 +132,7 @@ inline const tensor3d operator + (const tensor3d& lhs, const tensor3d& rhs) {
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;		\
       std::exit(1);							\
     }									\
-  } while(false)
+  } while (false)
 
 inline FILE* xfopen(const char* __restrict filename,
 		    const char* __restrict  mode) {

@@ -16,6 +16,7 @@ class Observer {
     HEIGHT_DIST,
     LOC_STRESS,
     DECOMP_ERROR,
+    VIRIAL_ERROR,
     
     NUM_FILE,
   };
@@ -57,6 +58,7 @@ public:
   void Initialize(const Parameter& param);
   void DumpMacroVal(const dpdsystem& sDPD, const Parameter& param);
   void DumpPressure(const dpdsystem& sDPD, const Parameter& param, const tensor3d& vil);
+  void DumpVirialError(const tensor3d& err);
   void DumpConfigTempera(const double configT);
   void DumpLocalVal(const dpdsystem &sDPD, const Parameter& param);
   void DumpTranject(const dpdsystem& sDPD, const ChemInfo& cheminfo, const int time);

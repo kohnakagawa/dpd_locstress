@@ -10,6 +10,7 @@
 
 #define INLINE __attribute__((always_inline))
 
+// LAPACK routine
 extern "C" {
   void dgelsd_(int* m, int* n, int* nrhs, double* a, int* lda,
 	       double* b, int* ldb, double* s, double* rcond, int* rank,
@@ -43,7 +44,7 @@ void call_dgelsd(std::array<double, nRows * nCols>& D,
   delete [] work;
 }
 
-class F_calculator{
+class F_calculator {
 public:
   Interactions itrs;
   BindInfo binfo;
@@ -51,6 +52,7 @@ public:
   std::vector<double>  buf_lap_pot;
   std::vector<std::vector<tensor3d> > buf_lstress;
   double f_decomp_err = 0.0;
+  tensor3d vir_sum;
   
   int grid_numbtw = -1, numb_band = -1, p_num_band[3] = {-1, -1, -1};
 
@@ -144,8 +146,6 @@ public:
       };
       
       const auto lambda = CalcLSLambda(j_grid, diff_grid, rj, drji, param);
-      for (auto l : lambda)  assert(l >= 0.0);
-      
       const int num_spreaded_cell = lambda.size();
       for (int i = 1; i < num_spreaded_cell; i++) {
 	auto base_pos = rj + drji * 0.5 * (lambda[i - 1] + lambda[i]);
@@ -245,11 +245,11 @@ public:
 
   INLINE void StoreBondForce(const double3& __restrict r,
 			     const double3& __restrict dr,
-			     const double& __restrict inv_dr,
-			     tensor3d& d_virial,
-			     double& lap_conf,
-			     double3* __restrict F,
-			     const Parameter& param) {
+			     const double&  __restrict inv_dr,
+			     tensor3d&      __restrict d_virial,
+			     double&        __restrict lap_conf,
+			     double3*       __restrict F,
+			     const Parameter& __restrict param) {
     const double cf_bond = itrs.cf_spring * (inv_dr - Parameter::i_bleng);
     
     const double3 Fbond(cf_bond * dr.x, cf_bond * dr.y, cf_bond * dr.z);
@@ -270,10 +270,10 @@ public:
 			     const double3* __restrict dr,
 			     const double*  __restrict inv_dr,
 			     const double*  __restrict dist,
-			     tensor3d&       __restrict d_virial,
+			     tensor3d&      __restrict d_virial,
 			     double&        __restrict lap_conf,
 			     double3*       __restrict F,
-			     const Parameter& param) {
+			     const Parameter& __restrict param) {
     const double	inv_dr_prod = inv_dr[0] * inv_dr[1];
     const double	inv_dist[2] = {inv_dr[0] * inv_dr[0],
 				       inv_dr[1] * inv_dr[1]};
@@ -316,6 +316,7 @@ public:
     for (int i = 0; i < Parameter::sys_size; i++) force[i].clear();
     buf_lap_pot.assign(buf_lap_pot.size(), 0.0);
     buf_vir.assign(buf_vir.size(), {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+
     for (size_t i = 0; i < buf_lstress.size(); i++)
       buf_lstress[i].assign(buf_lstress[i].size(), {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
     f_decomp_err = 0.0;
@@ -356,13 +357,13 @@ public:
 		     const Parameter&           param,
 		     const int                  call_num);
 
-  void Collision_pow_one(double3& vi,
-			 double3& vj,
-			 const double3& dr,
+  void Collision_pow_one(double3& __restrict vi,
+			 double3& __restrict vj,
+			 const double3& __restrict dr,
 			 const double cf_g,
 			 const double nrml,
 			 const double inv_dr,
-			 const Parameter& param) {
+			 const Parameter& __restrict param) {
     const double  g_invdr_dt = cf_g * (inv_dr - 1.0) * param.dt_c;
     const double  cf_numer   = inv_dr * g_invdr_dt;
     const double3 dv         = vi - vj;
@@ -375,14 +376,14 @@ public:
     vj -= col_impls;
   }
 
-  void Collision_pow_half(double3& vi,
-			  double3& vj,
-			  const double3& dr,
+  void Collision_pow_half(double3& __restrict vi,
+			  double3& __restrict vj,
+			  const double3& __restrict dr,
 			  const double cf_g,
 			  const double nrml,
 			  const double inv_dr,
 			  const double dr_norm, 
-			  const Parameter& param) {
+			  const Parameter& __restrict param) {
     const double w_dt			= cf_g * std::sqrt(1.0 - dr_norm) * param.dt_c;
     const double3 dv			= vi - vj;
     
@@ -399,19 +400,19 @@ public:
     vj -= col_impls;
   }
 
-  void AddCollisionHalf(const double3*  __restrict pr,
-			double3*        __restrict pv,
-			const par_prop* __restrict prop,
-			const CellList&            clist,
-			const Parameter&           param,
-			RNG&                       rng,
-			const int                  call_num);
+  void AddCollisionHalf(const double3*   __restrict pr,
+			double3*         __restrict pv,
+			const par_prop*  __restrict prop,
+			const CellList&  __restrict clist,
+			const Parameter& __restrict param,
+			RNG&             __restrict rng,
+			const int                   call_num);
 
   //calculate force in amphiphile molecule
   void CalcForceInAmp(const double3* __restrict pr,
-		      double3* __restrict force,
-		      const ChemInfo& cheminfo,
-		      const Parameter& param);
+		      double3*       __restrict force,
+		      const ChemInfo& __restrict cheminfo,
+		      const Parameter& __restrict param);
   
   /*TODO: This part may be optimized by using loop unrolling. */
   template<int bond_n>
@@ -463,6 +464,7 @@ public:
     for (int i = 0; i < th_numb; i++) {
       buf_lstress[i].resize(all_ls_grid, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
     }
+    vir_sum.fill({0.0, 0.0, 0.0});
     DevideCell(param);
   }
   
@@ -507,14 +509,26 @@ public:
     return numer / lap_pot;
   }
 
-  tensor3d DumpVirial() const {
-    tensor3d result = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  const tensor3d& DumpVirial() {
+    vir_sum.fill({0.0, 0.0, 0.0});
     const int th_numb = omp_get_max_threads();
     for (int tid = 0; tid < th_numb; tid++)
-      for (int j = 0; j < 3; j++) 
-	for (int k = 0; k < 3; k++)
-	  result[j][k] += buf_vir[tid][j][k];
-    return result;
+      for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
+	  vir_sum[j][k] += buf_vir[tid][j][k];
+	}
+    return vir_sum;
+  }
+
+  tensor3d DumpVirialError() const {
+    tensor3d vir_sum_ls = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+    const int thnum = buf_lstress.size();
+    const int grid_num = buf_lstress[0].size();
+    for (int i = 0; i < thnum; i++)
+      for (int g = 0; g < grid_num; g++)
+	for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
+	    vir_sum_ls[j][k] += buf_lstress[i][g][j][k];
+	  }
+    return vir_sum_ls - vir_sum;
   }
 
   double DumpFdecompError() const {
