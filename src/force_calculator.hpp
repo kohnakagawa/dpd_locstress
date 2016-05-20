@@ -315,10 +315,10 @@ public:
   INLINE void ClearForce(double3* force) {
     for (int i = 0; i < Parameter::sys_size; i++) force[i].clear();
     buf_lap_pot.assign(buf_lap_pot.size(), 0.0);
-    buf_vir.assign(buf_vir.size(), {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+    buf_vir.assign(buf_vir.size(), tensor3d{{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}});
 
     for (size_t i = 0; i < buf_lstress.size(); i++)
-      buf_lstress[i].assign(buf_lstress[i].size(), {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+      buf_lstress[i].assign(buf_lstress[i].size(), tensor3d{{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}});
     f_decomp_err = 0.0;
   }
 

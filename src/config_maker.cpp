@@ -297,8 +297,9 @@ class ConfigMaker {
 
     // topology check
     std::cout << "Topology check.\n";
-    int num_in_unit[Parameter::ALL_UNIT_N] = {0};
-    std::vector<int> num_in_pidx(param.ampN, 0), num_in_lidx(param.ampN, 0);
+    std::array<int, Parameter::ALL_UNIT_N> num_in_unit = {0};
+    std::vector<int> num_in_pidx, num_in_lidx;
+    num_in_pidx.resize(param.ampN, 0); num_in_lidx.resize(param.ampN, 0);
     
     for (const auto& ptcl : ptcl_buffer_) {
       if (ptcl.prop == Water) {
