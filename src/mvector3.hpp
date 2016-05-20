@@ -56,6 +56,10 @@ struct vector3{
   INLINE const T operator * (const vector3<T>& obj) const {
     return x * obj.x + y * obj.y + z * obj.z;
   }
+
+  INLINE const vector3<T> operator - () const {
+    return vector3<T>(-x, -y, -z);
+  }
   
   INLINE const vector3<T> operator / (const T cf) const {
     return vector3<T>(x / cf, y / cf, z / cf);

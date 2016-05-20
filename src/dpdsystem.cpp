@@ -406,14 +406,17 @@ void dpdsystem::Execute(const int all_time,
 #ifdef CALC_HEIGHT
       p_observer->DumpMembHeight(*this, *p_param, time);
 #endif
-
+      p_observer->DumpForceDecompError(f_calc.DumpFdecompError());
     }
     if (time % time_step_vt == 0) {
       p_observer->DumpPressure(*this, *p_param, f_calc.DumpVirial());
       p_observer->DumpConfigTempera(f_calc.DumpConfigT(force));
     }
+    
+    p_observer->AddLocalStress(*this, *p_param, f_calc.DumpCurLocStress());
   } //end of main loop
 
+  p_observer->DumpLocalStress(*p_param);
   p_observer->DumpFinalConfig(*this, cheminfo, end_time);
 }
 

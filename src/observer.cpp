@@ -12,6 +12,7 @@ Observer::Observer(const Parameter& param) {
   loc_dense.resize(param.grid_numb[1], 0.0);
   loc_vel.resize(param.grid_numb[2], double3(0.0));
   tail_cm_pos.resize((param.tailN > param.headN) ? param.tailN : param.headN, double3(0.0));
+  loc_stress_sum.reset(new tensor3d [param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2]]);
 
   // for height calculation
   cut_grid = static_cast<int>(param.L.x / cut_r);
@@ -43,6 +44,10 @@ std::string Observer::Type2Fname(const int type, const Parameter& param) {
     return param.cur_dir + "/fin_config.xyz";
   case HEIGHT_DIST:
     return param.cur_dir + "/height_dist.txt";
+  case LOC_STRESS:
+    return param.cur_dir + "/loc_stress.txt";
+  case DECOMP_ERROR:
+    return param.cur_dir + "/f_decomp_error.txt";
   default:
     std::cerr << "Unknown file type.\n";
     std::exit(1);
@@ -222,7 +227,7 @@ void Observer::CalcMembraneHeight(const dpdsystem& sDPD) {
   }
 }
 
-void Observer::DumpMacroVal(const dpdsystem& sDPD,const Parameter& param){
+void Observer::DumpMacroVal(const dpdsystem& sDPD, const Parameter& param) {
   const double kT = CalcKinTempera(sDPD);
   const double Dif = CalcDiffs(sDPD);
   const double thick = CalcThickness(sDPD, param);
@@ -326,4 +331,41 @@ void Observer::DumpMembHeight(const dpdsystem& sDPD, const Parameter& param, con
   fprintf(fp[HEIGHT_DIST] , "%f ", time * param.dt);
   for(size_t i = 0; i < hei.size(); i++) fprintf(fp[HEIGHT_DIST], "%.15g ", hei[i]);
   fprintf(fp[HEIGHT_DIST], "\n");
+}
+
+void Observer::DumpForceDecompError(const double error) {
+  fprintf(fp[DECOMP_ERROR], "%.10g\n", error);
+}
+
+void Observer::AddLocalStress(const dpdsystem& sDPD,
+			      const Parameter& param,
+			      const std::vector<std::vector<tensor3d> >& buf_lstress) {
+  // potential term
+  const int thnum = buf_lstress.size();
+  const int grid_num = buf_lstress[0].size();
+  for (int i = 0; i < thnum; i++)
+    for (int g = 0; g < grid_num; g++)
+      for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
+	  loc_stress_sum[g][j][k] += buf_lstress[i][g][j][k];
+	}
+  // kinetic term
+  for (int pi = 0; pi < Parameter::sys_size; pi++)
+    for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
+	loc_stress_sum[B_sorter::GenHash(sDPD.pr[pi], param)][j][k] += sDPD.pv[pi][j] * sDPD.pv[pi][k];
+      }
+  cnt_ls++;
+}
+
+void Observer::DumpLocalStress(const Parameter& param) {
+  const int grid_num = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
+  const double r_cnt_ls = 1.0 / cnt_ls;
+  for (int i = 0; i < grid_num; i++) {
+    for (int j = 0; j < 3; j++) {
+      for (int k = 0; k < 3; k++) {
+	loc_stress_sum[i][j][k] *= r_cnt_ls;
+	fprintf(fp[LOC_STRESS], "%.10g ", loc_stress_sum[i][j][k]);
+      }
+    }
+    fprintf(fp[LOC_STRESS], "\n");
+  }
 }

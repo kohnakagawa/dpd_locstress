@@ -16,7 +16,7 @@ class Parameter {
     CHECK_FILE_OPEN(fin);
 
     double rho = 0.0;
-    fin >> rho >> tempera >> sys_size >> headN >> tailN >> dt >> grid_leng.x >> L.y >> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof >> ls_grid_.x;
+    fin >> rho >> tempera >> sys_size >> headN >> tailN >> dt >> grid_leng.x >> L.y >> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof >> ls_grid_.x >> ls_lambda;
     L.z = L.x = std::sqrt(sys_size / (rho * L.y));
     grid_leng.z = grid_leng.y = grid_leng.x; // ASSUME: grid_leng.x = grid_leng.y = grid_leng.z
     ls_grid_.z = ls_grid_.y = ls_grid_.x;
@@ -124,6 +124,8 @@ class Parameter {
     CHECK_EQUATION(std::isfinite(dt), dt);
     CHECK_EQUATION(std::isfinite(tempera), tempera);
     CHECK_EQUATION(std::isfinite(inv_dt_sq), inv_dt_sq);
+    CHECK_EQUATION(std::isfinite(dt_c), dt_c);
+    CHECK_EQUATION(std::isfinite(ls_lambda), ls_lambda);
     
     CHECK_EQUATION(L.isfinite3(), L);
     CHECK_EQUATION(iL.isfinite3(), iL);
@@ -135,6 +137,31 @@ class Parameter {
     CHECK_EQUATION(std::isfinite(grid_numb[1]), grid_numb[1]);
     CHECK_EQUATION(std::isfinite(grid_numb[2]), grid_numb[2]);
     CHECK_EQUATION(std::isfinite(all_grid), all_grid);
+    
+    CHECK_EQUATION(grid_numb[0] > 0, grid_numb[0]);
+    CHECK_EQUATION(grid_numb[1] > 0, grid_numb[1]);
+    CHECK_EQUATION(grid_numb[2] > 0, grid_numb[2]);
+    CHECK_EQUATION(all_grid, all_grid);
+
+    CHECK_EQUATION(grid_leng[0] > 0.0, grid_leng[0]);
+    CHECK_EQUATION(grid_leng[1] > 0.0, grid_leng[1]);
+    CHECK_EQUATION(grid_leng[2] > 0.0, grid_leng[2]);
+
+    CHECK_EQUATION(i_grid_leng[0] > 0.0, i_grid_leng[0]);
+    CHECK_EQUATION(i_grid_leng[1] > 0.0, i_grid_leng[1]);
+    CHECK_EQUATION(i_grid_leng[2] > 0.0, i_grid_leng[2]);
+
+    CHECK_EQUATION(ls_grid_[0] > 0.0, ls_grid_[0]);
+    CHECK_EQUATION(ls_grid_[1] > 0.0, ls_grid_[1]);
+    CHECK_EQUATION(ls_grid_[2] > 0.0, ls_grid_[2]);
+
+    CHECK_EQUATION(i_ls_grid_[0] > 0.0, i_ls_grid_[0]);
+    CHECK_EQUATION(i_ls_grid_[1] > 0.0, i_ls_grid_[1]);
+    CHECK_EQUATION(i_ls_grid_[2] > 0.0, i_ls_grid_[2]);
+    
+    CHECK_EQUATION(ls_grid_num_[0] > 0, ls_grid_num_[0]);
+    CHECK_EQUATION(ls_grid_num_[1] > 0, ls_grid_num_[1]);
+    CHECK_EQUATION(ls_grid_num_[2] > 0, ls_grid_num_[2]);
 
     CHECK_EQUATION(coef_prob[0] > 0.0, coef_prob[0]);
     CHECK_EQUATION(coef_prob[1] > 0.0, coef_prob[1]);
@@ -175,7 +202,6 @@ public:
   BindInfo binfo;
   Interactions intrparams;
 
-  //change system size
   enum {
     HYPHIL_N = 1,
     HYPHOB_N = 3,
@@ -198,6 +224,7 @@ public:
   double tempera	= std::numeric_limits<double>::signaling_NaN();
   double inv_dt_sq	= std::numeric_limits<double>::signaling_NaN();
   double dt_c		= std::numeric_limits<double>::signaling_NaN();
+  double ls_lambda      = std::numeric_limits<double>::signaling_NaN();
   
   double3 L, iL, hL, ihL, grid_leng, i_grid_leng;
   double3 ls_grid_, i_ls_grid_;

@@ -33,6 +33,8 @@ CXXFLAGS += $(STDCPP11)
 OBJECTS = main.o bucket_sorter.o dpdsystem.o force_calculator.o observer.o time_evolver.o chem_manager.o
 OBJECTS_DPD = $(addprefix ./src/,$(OBJECTS))
 
+LIBRARY = -llapack
+
 TARGET = shald_dpd.out config_maker.out
 
 all : $(TARGET)

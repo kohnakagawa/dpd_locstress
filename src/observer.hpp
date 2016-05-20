@@ -1,6 +1,7 @@
 #pragma once
 #include "parameter.hpp"
 #include "dpdsystem.hpp"
+#include <memory>
 
 class Observer {
   // observer type
@@ -13,6 +14,8 @@ class Observer {
     CONFIG_TEMP,
     FINAL_CONFIG,
     HEIGHT_DIST,
+    LOC_STRESS,
+    DECOMP_ERROR,
     
     NUM_FILE,
   };
@@ -23,13 +26,9 @@ class Observer {
 
   std::vector<double> loc_tempera, loc_dense;
   std::vector<double3> loc_vel, tail_cm_pos;
+  std::unique_ptr<tensor3d[]> loc_stress_sum;
+  int cnt_ls = 0;
   
-  // void MinImage(double3& a, const Parameter& param) {
-  //   a.x -= param.L.x * std::round(a.x * param.iL.x);
-  //   a.y -= param.L.y * std::round(a.y * param.iL.y);
-  //   a.z -= param.L.z * std::round(a.z * param.iL.z);
-  // }
-
   //ASSUME: membrane is square shape.
   double cut_r = 2.0, i_cut_r = -1.0;
   int cut_grid = -1;
@@ -63,4 +62,7 @@ public:
   void DumpTranject(const dpdsystem& sDPD, const ChemInfo& cheminfo, const int time);
   void DumpFinalConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const int time);
   void DumpMembHeight(const dpdsystem& sDPD, const Parameter& param, const int time);
+  void DumpForceDecompError(const double err);
+  void AddLocalStress(const dpdsystem& sDPD, const Parameter& param, const std::vector<std::vector<tensor3d> >& buf_lstress);
+  void DumpLocalStress(const Parameter& param);
 };

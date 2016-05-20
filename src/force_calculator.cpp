@@ -37,20 +37,6 @@ void F_calculator::CalcBondBend<1>(const double3* __restrict	pr,
 				   const Parameter&		param)
 {}
 
-F_calculator::F_calculator(const Parameter& param) {
-  itrs  = param.GetIntractions();
-  binfo = param.GetBindInform();
-  const int th_numb   = omp_get_max_threads();
-  buf_vir.resize(th_numb, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-  buf_lap_pot.resize(th_numb, 0.0);
-  buf_lstress.resize(th_numb);
-  const auto all_ls_grid = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
-  for (int i = 0; i < th_numb; i++) {
-    buf_lstress[i].resize(all_ls_grid, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-  }
-  DevideCell(param);
-}
-
 void F_calculator::AddConservForce(const double3* __restrict	pr,
 				   const par_prop* __restrict   prop,
 				   double3* __restrict		force,

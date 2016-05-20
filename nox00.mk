@@ -1,25 +1,11 @@
-# CXX = g++
 CXX = icpc
 
 EIGEN_FLAGS = -DEIGEN_NO_DEBUG
 
-ifeq ($(CXX),icpc)
 OPENMP = -openmp
-endif
-ifeq ($(CXX),g++)
-OPENMP = -fopenmp
-endif
-
 DEBUG = -O0 -g -DDEBUG
 WARNINGS = -Wall -Wextra # -Wnon-virtual-dtor -Woverloaded-virtual 
-
-ifeq ($(CXX),icpc)
 RELEASE = -O3 -ipo -no-prec-div
-endif
-ifeq ($(CXX),g++)
-RELEASE = -O3 -ffast-math -funroll-loops
-endif
-
 STDCPP11 = -std=c++11
 
 # CXXFLAGS = $(DEBUG)
@@ -35,6 +21,8 @@ OBJECTS_DPD = $(addprefix ./src/,$(OBJECTS))
 OBJECTS_DPD_SSE4 = $(addsuffix .sse4_o,$(OBJECTS_DPD))
 OBJECTS_DPD_AVX  = $(addsuffix .avx_o,$(OBJECTS_DPD))
 OBJECTS_DPD_AVX2 = $(addsuffix .avx2_o,$(OBJECTS_DPD))
+
+LIBRARY = -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lpthread # for lapack
 
 TARGET = shald_dpd_sse4.out shald_dpd_avx.out shald_dpd_avx2.out config_maker.out
 
