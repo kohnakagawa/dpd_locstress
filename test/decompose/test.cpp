@@ -1,6 +1,5 @@
 #include "../../src/force_calculator.hpp"
 #include <iostream>
-#include <sstream>
 #include <memory>
 
 int Parameter::sys_size;
@@ -60,9 +59,9 @@ void calc_force(std::array<double3, 3>& pos,
       for (int k = 0; k < 3; k++) 
 	all_stress[j][k] += loc_stress_sum[g][j][k];
 
-  std::cout << "CHECK:\n";
+  std::cout << "CHECK: local stress sum, global stress\n";
   for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
-      std::cout << all_stress[j][k] << " " << d_virial[j][k] << std::endl;
+      std::cout << all_stress[j][k] << ", " << d_virial[j][k] << std::endl;
     }
 }
 
