@@ -56,7 +56,7 @@ public:
   
   int grid_numbtw = -1, numb_band = -1, p_num_band[3] = {-1, -1, -1};
 
-  inline std::array<int, 3> GetLSGrid(const double3& r,
+  INLINE std::array<int, 3> GetLSGrid(const double3& r,
 				      const Parameter& param) const {
     const std::array<int, 3> grid_id = {
       static_cast<int>(r.x * param.i_ls_grid_.x),
@@ -66,7 +66,7 @@ public:
     return grid_id;
   }
 
-  inline int GetLSGrid1d(const std::array<int, 3>& grid_id,
+  INLINE int GetLSGrid1d(const std::array<int, 3>& grid_id,
 			 const Parameter& param) const {
     const auto ret = grid_id[0] + param.ls_grid_num_[0] * (grid_id[1] + grid_id[2] * param.ls_grid_num_[1]);
 #ifdef DEBUG
@@ -76,7 +76,7 @@ public:
   }
 
   // NOTE: this function is applied for each axis.
-  inline void CalcLSLambdaForEachAxis(std::vector<double>& lambda,
+  INLINE void CalcLSLambdaForEachAxis(std::vector<double>& lambda,
 				      const int j_grid,
 				      int diff_grid,
 				      const double rj,
@@ -98,7 +98,7 @@ public:
     }
   }
 
-  inline std::vector<double> CalcLSLambda(const std::array<int, 3>& j_grid,
+  INLINE std::vector<double> CalcLSLambda(const std::array<int, 3>& j_grid,
 					  const std::array<int, 3>& diff_grid,
 					  const double3 rj,
 					  const double3 drji,
@@ -113,7 +113,7 @@ public:
     return lambda;
   }
 
-  void ApplyPBC(double3& r, const Parameter& param) {
+  static INLINE void ApplyPBC(double3& r, const Parameter& param) {
     r.x -= std::floor(r.x * param.iL.x) * param.L.x;
     r.y -= std::floor(r.y * param.iL.y) * param.L.y;
     r.z -= std::floor(r.z * param.iL.z) * param.L.z;
@@ -225,6 +225,9 @@ public:
     const double3 dF42(b[3] * dr42.x, b[3] * dr42.y, b[3] * dr42.z);
     const double3 dF43(b[4] * dr43.x, b[4] * dr43.y, b[4] * dr43.z);
 
+    // std::cout << std::setprecision(15);
+    // std::cout << std::sqrt(dF21 * dF21) * b[0] / std::abs(b[0]) << std::endl;
+
     // check err
     const double3 F1_d = dF21 + dF41;
     const double3 F2_d = dF32 + dF42 - dF21;
@@ -302,7 +305,7 @@ public:
     F[2] += Ftb1;
 
 #ifdef CALC_LOC_STRESS
-#if 0
+#ifdef RELAXED_BASE_POS
     Decompose3N(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
 #else
     const double3 bi_vec = Ftb_sum / Ftb_sum.norm2();

@@ -318,6 +318,33 @@ public:
     PRT_WITH_TAG(coef_prob[1]);
     PRT_WITH_TAG(coef_prob[2]);
     PRT_WITH_TAG(prob_cutof);
+
+    ost << "COMPILE INFORM\n";
+#ifdef NO_THERMO_STAT
+    ost << "NO_THERMO_STAT is defined.\n";
+#endif
+#ifdef Y_REFLECT_BOUND
+    ost << "Y_REFLECT_BOUND is defined.\n";
+#endif
+#ifdef ADD_BIND_POTENT
+    ost << "ADD_BIND_POTENT is defined.\n";
+#endif
+#ifdef ADD_POSRES
+    ost << "ADD_POSRES is defined.\n";
+#endif
+#ifdef CALC_HEIGHT
+    ost << "CALC_HEIGHT is defined.\n";
+#endif
+#ifdef VISC_KERN_SQRT
+    ost << "VISC_KERN_SQRT is defined.\n";
+#endif
+#ifdef CALC_LOC_STRESS
+    ost << "CALC_LOC_STRESS is defined.\n";
+#ifdef RELAXED_BASE_POS
+    ost << "RELAXED_BASE_POS is defined.\n";
+#endif
+#endif
+
 #undef PRT_WITH_TAG
   }
 

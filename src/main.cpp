@@ -10,6 +10,8 @@
 
 #ifndef CHEM_MODE
 #warning "THERE IS NO CHEMICAL REACTION!"
+#else
+#error "THIS MODE IS DEPRECATED IN CURRENT VERSION!"
 #endif
 
 #ifdef Y_REFLECT_BOUND

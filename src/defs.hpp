@@ -31,6 +31,10 @@
 
 #define CALC_LOC_STRESS
 
+#ifdef CALC_LOC_STRESS
+// #define RELAXED_BASE_POS
+#endif
+
 //structs
 enum par_prop {
   Water = 0, Hyphil, Hyphob,
