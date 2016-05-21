@@ -206,7 +206,7 @@ public:
     EQUIL_TIME = 500000,
   };
 
-  static constexpr double b_leng   = 0.8;
+  static constexpr double b_leng   = 0.5;
   static constexpr double i_bleng  = 1.0 / b_leng;
   static constexpr double ch_leng  = 0.69;
 
