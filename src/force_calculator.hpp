@@ -226,6 +226,16 @@ public:
     const double3 dF43(b[4] * dr43.x, b[4] * dr43.y, b[4] * dr43.z);
 
     // std::cout << std::setprecision(15);
+    // // std::cout << dF21.norm2() * dr21.norm2() + dF41.norm2() * dr41.norm2() + dF32.norm2() * dr32.norm2() + dF42.norm2() * dr42.norm2() + dF43.norm2() * dr43.norm2() << std::endl;
+    // // std::cout << dF21.norm2() * dr21.norm2() * b[0] / std::abs(b[0]) + dF41.norm2() * dr41.norm2() * b[1] / std::abs(b[1]) << std::endl;
+    // const double temp_vec0 = dF41 * F1 / F1.norm2();
+    // const double temp_vec1 = dr41 * F1 / F1.norm2();
+    // std::cout << temp_vec1 * temp_vec0 << std::endl;;
+
+    // std::cout << dF42.norm2() << std::endl;
+    
+    // std::cout << dF21[0] * dr21[0] + dF41[0] * dr41[0] << std::endl;
+    // std::cout << b[0] << std::endl;
     // std::cout << std::sqrt(dF21 * dF21) * b[0] / std::abs(b[0]) << std::endl;
 
     // check err
@@ -296,7 +306,7 @@ public:
 	d_virial[i][j] += dr[0][i] * Ftb0[j] + dr[1][i] * Ftb1[j];	
       }
 
-    lap_conf += 2.0 * cf_b * inv_dist[0] * inv_dist[1] * (in_prod * (in_prod + 2.0 * (dist[0] + dist[1])) + dist[0] * dist[1]);    
+    lap_conf += 2.0 * cf_b * in_prod * (2.0 * (inv_dist[0] + inv_dist[1]) + in_prod * inv_dr_prod * inv_dr_prod + 1.0 / in_prod);
     
     const double3 Ftb_sum = Ftb0 - Ftb1;
     
