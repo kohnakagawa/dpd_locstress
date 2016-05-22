@@ -52,7 +52,7 @@ void F_calculator::AddConservForce(const double3* __restrict	pr,
     CalcForceHalf(pr, prop, force, clist, param, 1);
   }
   
-  CalcForceInAmp(pr,force,cheminfo,param);
+  CalcForceInAmp(pr, force, cheminfo, param);
 }
 
 void F_calculator::AddDisspRandom(const double3*  __restrict pr,
@@ -254,15 +254,15 @@ void F_calculator::CalcForceInAmp(const double3* __restrict	pr,
     if (cheminfo.lipid_unit[i] == Parameter::REAC_PART) {
       if (cheminfo.prtcl_chem[i]) {
 	const int beg_idx = cheminfo.lipid_idx[i] * Parameter::ALL_UNIT_N;
-	CalcBondBend<Parameter::ALL_UNIT_N>(pr, force,d_virial, d_lap_potent, beg_idx, cheminfo.lip_elem_idx, param);
+	CalcBondBend<Parameter::ALL_UNIT_N>(pr, force, d_virial, d_lap_potent, beg_idx, cheminfo.lip_elem_idx, param);
       } else {
 	const int beg_idx = cheminfo.part_idx[i] * Parameter::TAIL_PART;
-	CalcBondBend<Parameter::TAIL_PART >(pr, force,d_virial, d_lap_potent, beg_idx, cheminfo.tail_elem_idx,param);
+	CalcBondBend<Parameter::TAIL_PART >(pr, force, d_virial, d_lap_potent, beg_idx, cheminfo.tail_elem_idx, param);
       }
     } else if (cheminfo.lipid_unit[i] == Parameter::REAC_PART - 1) {
       if (!cheminfo.prtcl_chem[i]) {
 	const int beg_idx = cheminfo.part_idx[i] * Parameter::REAC_PART;
-	CalcBondBend<Parameter::REAC_PART>(pr,force,d_virial,d_lap_potent,beg_idx,cheminfo.head_elem_idx,param);
+	CalcBondBend<Parameter::REAC_PART>(pr, force, d_virial, d_lap_potent, beg_idx, cheminfo.head_elem_idx, param);
       }
     }
   }
