@@ -295,14 +295,14 @@ void Observer::DumpLocalVal(const dpdsystem &sDPD, const Parameter& param) {
   const double3* t_r = sDPD.pr;
   const double3* t_v = sDPD.pv;
 
-  loc_tempera.assign(loc_tempera.size(),0.0);
-  loc_dense.assign(loc_dense.size(),0.0);
+  loc_tempera.assign(loc_tempera.size(), 0.0);
+  loc_dense.assign(loc_dense.size(), 0.0);
   loc_vel.assign(loc_vel.size(), double3(0.0));
 
   for (int i = 0; i < Parameter::sys_size; i++) {
     const double3 pos = t_r[i];
     const double3 vel = t_v[i];
-    int hash = static_cast<int>(pos.z * param.i_grid_leng.z);
+    int hash = static_cast<int>(pos.y * param.i_grid_leng.y);
     if (hash == param.grid_numb[1]) hash--;
     loc_tempera[hash] += vel*vel;
     loc_dense[hash]   += 1.0;
@@ -312,12 +312,12 @@ void Observer::DumpLocalVal(const dpdsystem &sDPD, const Parameter& param) {
   for (size_t i = 0; i < loc_tempera.size(); i++) {
     loc_vel[i] /= loc_dense[i];
     loc_tempera[i] /= loc_dense[i] * 3.0;
-    loc_dense[i] /= param.grid_leng.z * param.L.x * param.L.y;
+    loc_dense[i] /= param.grid_leng.y * param.L.x * param.L.z;
   }
   
   for (size_t i = 0; i < loc_tempera.size(); i++) {
-    const double cur_z = (i + 0.5) * param.grid_leng.z;
-    fprintf(fp[LOCAL_VAL], "%f %.15g %.15g %.15g %.15g %.15g\n", cur_z, loc_tempera[i], loc_dense[i], loc_vel[i].x, loc_vel[i].y, loc_vel[i].z);
+    const double cur_y = (i + 0.5) * param.grid_leng.y;
+    fprintf(fp[LOCAL_VAL], "%f %.15g %.15g %.15g %.15g %.15g\n", cur_y, loc_tempera[i], loc_dense[i], loc_vel[i].x, loc_vel[i].y, loc_vel[i].z);
   }
 }
 
