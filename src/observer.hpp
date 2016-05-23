@@ -1,7 +1,6 @@
 #pragma once
 #include "parameter.hpp"
 #include "dpdsystem.hpp"
-#include <memory>
 
 class Observer {
   // observer type
@@ -27,7 +26,7 @@ class Observer {
 
   std::vector<double> loc_tempera, loc_dense;
   std::vector<double3> loc_vel, tail_cm_pos;
-  std::unique_ptr<tensor3d[]> loc_stress_sum;
+  tensor3d* loc_stress_sum = nullptr;
   int cnt_ls = 0;
   
   //ASSUME: membrane is square shape.

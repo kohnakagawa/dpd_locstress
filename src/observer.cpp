@@ -12,7 +12,12 @@ Observer::Observer(const Parameter& param) {
   loc_dense.resize(param.grid_numb[1], 0.0);
   loc_vel.resize(param.grid_numb[2], double3(0.0));
   tail_cm_pos.resize((param.tailN > param.headN) ? param.tailN : param.headN, double3(0.0));
-  loc_stress_sum.reset(new tensor3d [param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2]]);
+  loc_stress_sum = new tensor3d [param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2]];
+  const int all_ls_grid = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
+  for (int i = 0; i < all_ls_grid; i++)
+    for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
+	loc_stress_sum[i][j][k] = 0.0;
+      }
 
   // for height calculation
   cut_grid = static_cast<int>(param.L.x / cut_r);
@@ -24,6 +29,7 @@ Observer::Observer(const Parameter& param) {
 
 Observer::~Observer() {
   for (int i = 0; i < NUM_FILE; i++) fclose(fp[i]);
+  delete [] loc_stress_sum;
 }
 
 std::string Observer::Type2Fname(const int type, const Parameter& param) {
@@ -360,7 +366,7 @@ void Observer::AddLocalStress(const dpdsystem& sDPD,
   // kinetic term
   for (int pi = 0; pi < Parameter::sys_size; pi++)
     for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
-	loc_stress_sum[B_sorter::GenHash(sDPD.pr[pi], param)][j][k] += sDPD.pv[pi][j] * sDPD.pv[pi][k];
+	loc_stress_sum[F_calculator::GetLSGrid1d(F_calculator::GetLSGrid(sDPD.pr[pi], param), param)][j][k] += sDPD.pv[pi][j] * sDPD.pv[pi][k];
       }
   cnt_ls++;
 }
@@ -369,9 +375,9 @@ void Observer::DumpLocalStress(const Parameter& param) {
   const double ls_box_vol = param.ls_grid_.x * param.ls_grid_.y * param.ls_grid_.z;
   const double r_cnt_ls = 1.0 / (cnt_ls * ls_box_vol);
   int i = 0;
-  for (int iz = 0; iz < param.ls_grid_[2]; iz++) {
-    for (int iy = 0; iy < param.ls_grid_[1]; iy++) {
-      for (int ix = 0; ix < param.ls_grid_[0]; ix++) {
+  for (int iz = 0; iz < param.ls_grid_num_[2]; iz++) {
+    for (int iy = 0; iy < param.ls_grid_num_[1]; iy++) {
+      for (int ix = 0; ix < param.ls_grid_num_[0]; ix++) {
 	const double pos[] = {(ix + 0.5) * param.ls_grid_.x,
 			      (iy + 0.5) * param.ls_grid_.y,
 			      (iz + 0.5) * param.ls_grid_.z};

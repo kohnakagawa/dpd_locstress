@@ -21,7 +21,7 @@ class B_sorter {
       buf[i] = dat[i];
 #ifdef DEBUG
     for (int i = 0; i < elem; i++)
-      assert(celllist.next_dest[i] < Parameter::SYS_SIZE);
+      assert(celllist.next_dest[i] < Parameter::sys_size);
 #endif
 #pragma omp parallel for
     for (int i = 0; i < elem; i++)

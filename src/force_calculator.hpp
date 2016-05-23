@@ -56,20 +56,27 @@ public:
   
   int grid_numbtw = -1, numb_band = -1, p_num_band[3] = {-1, -1, -1};
 
-  INLINE std::array<int, 3> GetLSGrid(const double3& r,
-				      const Parameter& param) const {
-    const std::array<int, 3> grid_id = {
+  static INLINE std::array<int, 3> GetLSGrid(const double3& r,
+					     const Parameter& param) {
+    std::array<int, 3> grid_id = {
       static_cast<int>(r.x * param.i_ls_grid_.x),
       static_cast<int>(r.y * param.i_ls_grid_.y),
       static_cast<int>(r.z * param.i_ls_grid_.z)
     };
+    if (grid_id[0] == param.ls_grid_num_[0]) grid_id[0]--;
+    if (grid_id[1] == param.ls_grid_num_[1]) grid_id[1]--;
+    if (grid_id[2] == param.ls_grid_num_[2]) grid_id[2]--;
+    
     return grid_id;
   }
 
-  INLINE int GetLSGrid1d(const std::array<int, 3>& grid_id,
-			 const Parameter& param) const {
+  static INLINE int GetLSGrid1d(const std::array<int, 3>& grid_id,
+				const Parameter& param) {
     const auto ret = grid_id[0] + param.ls_grid_num_[0] * (grid_id[1] + grid_id[2] * param.ls_grid_num_[1]);
 #ifdef DEBUG
+    CHECK_EQUATION(grid_id[0] < param.ls_grid_num_[0], grid_id[0]);
+    CHECK_EQUATION(grid_id[1] < param.ls_grid_num_[1], grid_id[1]);
+    CHECK_EQUATION(grid_id[2] < param.ls_grid_num_[2], grid_id[2]);
     CHECK_EQUATION(ret < param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2], ret);
 #endif
     return ret;
@@ -224,19 +231,6 @@ public:
     const double3 dF32(b[2] * dr32.x, b[2] * dr32.y, b[2] * dr32.z);
     const double3 dF42(b[3] * dr42.x, b[3] * dr42.y, b[3] * dr42.z);
     const double3 dF43(b[4] * dr43.x, b[4] * dr43.y, b[4] * dr43.z);
-
-    // std::cout << std::setprecision(15);
-    // // std::cout << dF21.norm2() * dr21.norm2() + dF41.norm2() * dr41.norm2() + dF32.norm2() * dr32.norm2() + dF42.norm2() * dr42.norm2() + dF43.norm2() * dr43.norm2() << std::endl;
-    // // std::cout << dF21.norm2() * dr21.norm2() * b[0] / std::abs(b[0]) + dF41.norm2() * dr41.norm2() * b[1] / std::abs(b[1]) << std::endl;
-    // const double temp_vec0 = dF41 * F1 / F1.norm2();
-    // const double temp_vec1 = dr41 * F1 / F1.norm2();
-    // std::cout << temp_vec1 * temp_vec0 << std::endl;;
-
-    // std::cout << dF42.norm2() << std::endl;
-    
-    // std::cout << dF21[0] * dr21[0] + dF41[0] * dr41[0] << std::endl;
-    // std::cout << b[0] << std::endl;
-    // std::cout << std::sqrt(dF21 * dF21) * b[0] / std::abs(b[0]) << std::endl;
 
     // check err
     const double3 F1_d = dF21 + dF41;
