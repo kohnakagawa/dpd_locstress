@@ -15,13 +15,12 @@ class Parameter {
     std::ifstream fin(fname.c_str());
     CHECK_FILE_OPEN(fin);
 
-    fin >> tempera >> sys_size >> headN >> tailN >> dt >> grid_leng.x >> L.x >> L.y >> L.z >> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof >> ls_grid_.x >> ls_lambda;
+    fin >> tempera >> sys_size >> headN >> tailN >> dt >> grid_leng.x >> L.x >> L.y >> L.z >> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof >> ls_grid_.x >> ls_grid_.y >> ls_grid_.z >> ls_lambda;
 
     CHECK_FILESTREAM_IS_OK(fin);
     CHECK_FILE_IS_EOF(fin);
     
     grid_leng.z = grid_leng.y = grid_leng.x;
-    ls_grid_.z = ls_grid_.y = ls_grid_.x;
     
     ampN = (headN < tailN) ? headN : tailN;
 

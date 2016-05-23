@@ -366,16 +366,25 @@ void Observer::AddLocalStress(const dpdsystem& sDPD,
 }
 
 void Observer::DumpLocalStress(const Parameter& param) {
-  const int grid_num = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
   const double ls_box_vol = param.ls_grid_.x * param.ls_grid_.y * param.ls_grid_.z;
   const double r_cnt_ls = 1.0 / (cnt_ls * ls_box_vol);
-  for (int i = 0; i < grid_num; i++) {
-    for (int j = 0; j < 3; j++) {
-      for (int k = 0; k < 3; k++) {
-	loc_stress_sum[i][j][k] *= r_cnt_ls;
-	fprintf(fp[LOC_STRESS], "%.10g ", loc_stress_sum[i][j][k]);
+  int i = 0;
+  for (int iz = 0; iz < param.ls_grid_[2]; iz++) {
+    for (int iy = 0; iy < param.ls_grid_[1]; iy++) {
+      for (int ix = 0; ix < param.ls_grid_[0]; ix++) {
+	const double pos[] = {(ix + 0.5) * param.ls_grid_.x,
+			      (iy + 0.5) * param.ls_grid_.y,
+			      (iz + 0.5) * param.ls_grid_.z};
+	fprintf(fp[LOC_STRESS], "%.10g %.10g %.10g ", pos[0], pos[1], pos[2]);
+	for (int j = 0; j < 3; j++) {
+	  for (int k = 0; k < 3; k++) {
+	    loc_stress_sum[i][j][k] *= r_cnt_ls;
+	    fprintf(fp[LOC_STRESS], "%.10g ", loc_stress_sum[i][j][k]);
+	  }
+	}
+	fprintf(fp[LOC_STRESS], "\n");
+	i++;
       }
     }
-    fprintf(fp[LOC_STRESS], "\n");
   }
 }

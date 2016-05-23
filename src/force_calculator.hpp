@@ -306,7 +306,7 @@ public:
 	d_virial[i][j] += dr[0][i] * Ftb0[j] + dr[1][i] * Ftb1[j];	
       }
 
-    lap_conf += 2.0 * cf_b * in_prod * (2.0 * (inv_dist[0] + inv_dist[1]) + in_prod * inv_dr_prod * inv_dr_prod + 1.0 / in_prod);
+    lap_conf += 2.0 * cf_b * (in_prod * (2.0 * (inv_dist[0] + inv_dist[1]) + in_prod * inv_dr_prod * inv_dr_prod) + 1.0);
     
     const double3 Ftb_sum = Ftb0 - Ftb1;
     
