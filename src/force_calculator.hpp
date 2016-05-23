@@ -58,20 +58,20 @@ public:
 
   static INLINE std::array<int, 3> GetLSGrid(const double3& r,
 					     const Parameter& param) {
-    std::array<int, 3> grid_id = {
+    const std::array<int, 3> grid_id = {
       static_cast<int>(r.x * param.i_ls_grid_.x),
       static_cast<int>(r.y * param.i_ls_grid_.y),
       static_cast<int>(r.z * param.i_ls_grid_.z)
     };
-    if (grid_id[0] == param.ls_grid_num_[0]) grid_id[0]--;
-    if (grid_id[1] == param.ls_grid_num_[1]) grid_id[1]--;
-    if (grid_id[2] == param.ls_grid_num_[2]) grid_id[2]--;
-    
     return grid_id;
   }
 
-  static INLINE int GetLSGrid1d(const std::array<int, 3>& grid_id,
+  static INLINE int GetLSGrid1d(std::array<int, 3> grid_id,
 				const Parameter& param) {
+    if (grid_id[0] == param.ls_grid_num_[0]) grid_id[0]--;
+    if (grid_id[1] == param.ls_grid_num_[1]) grid_id[1]--;
+    if (grid_id[2] == param.ls_grid_num_[2]) grid_id[2]--;
+
     const auto ret = grid_id[0] + param.ls_grid_num_[0] * (grid_id[1] + grid_id[2] * param.ls_grid_num_[1]);
 #ifdef DEBUG
     CHECK_EQUATION(grid_id[0] < param.ls_grid_num_[0], grid_id[0]);
