@@ -50,8 +50,10 @@ public:
   BindInfo binfo;
   std::vector<tensor3d> buf_vir;
   std::vector<double>  buf_lap_pot;
+
+  static constexpr int ls_type_pot = NUM_LS_TYPE - 1;
   
-  std::array<std::vector<std::vector<tensor3d> >, NUM_TYPE - 1> buf_lstress;
+  std::array<std::vector<std::vector<tensor3d> >, ls_type_pot> buf_lstress;
   double f_decomp_err = 0.0;
   tensor3d vir_sum;
   
@@ -326,7 +328,7 @@ public:
     buf_lap_pot.assign(buf_lap_pot.size(), 0.0);
     buf_vir.assign(buf_vir.size(), tensor3d{{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}});
 
-    for (int i = 0; i < NUM_TYPE; i++) {
+    for (int i = 0; i < ls_type_pot; i++) {
       const int num_lstress_grid = buf_lstress[i].size();
       for (int j = 0; j < num_lstress_grid; j++) {
 	buf_lstress[i][j].assign(buf_lstress[i][j].size(), tensor3d{{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}});
@@ -474,7 +476,7 @@ public:
     buf_lap_pot.resize(th_numb, 0.0);
     
     const auto all_ls_grid = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
-    for (int i = 0; i < NUM_TYPE; i++) {
+    for (int i = 0; i < ls_type_pot; i++) {
       buf_lstress[i].resize(th_numb);
       for (int j = 0; j < th_numb; j++) {
 	buf_lstress[i][j].resize(all_ls_grid, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
@@ -540,7 +542,7 @@ public:
     const int thnum = buf_lstress.size();
     const int grid_num = buf_lstress[0].size();
     
-    for (int t = 0; t < NUM_TYPE; t++)
+    for (int t = 0; t < ls_type_pot; t++)
       for (int i = 0; i < thnum; i++)
 	for (int g = 0; g < grid_num; g++)
 	  for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {

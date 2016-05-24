@@ -49,7 +49,7 @@ enum {
   // DIHEDRAL,
   KINETIC,
   
-  NUM_TYPE,
+  NUM_LS_TYPE,
 };
 
 struct Interactions {

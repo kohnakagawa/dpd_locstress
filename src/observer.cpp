@@ -13,11 +13,11 @@ Observer::Observer(const Parameter& param) {
   loc_vel.resize(param.grid_numb[2], double3(0.0));
   tail_cm_pos.resize((param.tailN > param.headN) ? param.tailN : param.headN, double3(0.0));
   const int all_ls_grid = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
-  for (auto& ls : loc_stress_sum) {
-    ls.resize(all_ls_grid);
+  for (size_t i = 0; i < loc_stress_sum.size(); i++) {
+    loc_stress_sum[i].resize(all_ls_grid);
   }
 
-  for (int t = 0; t < num_locstress_type; t++)
+  for (int t = 0; t < NUM_LS_TYPE + 1; t++)
     for (int i = 0; i < all_ls_grid; i++)
       for (int j = 0; j < 3; j++)
 	for (int k = 0; k < 3; k++)
@@ -409,21 +409,21 @@ void Observer::DumpLocalStress(const Parameter& param) {
 
 	for (int j = 0; j < 3; j++) {
 	  for (int k = 0; k < 3; k++) {
-	    loc_stress_sum[LOC_STRESS_IMOL][i][j][k] *= r_cnt_ls;
-	    loc_stress_sum[LOC_STRESS_BOND][i][j][k] *= r_cnt_ls;
-	    loc_stress_sum[LOC_STRESS_ANGLE][i][j][k] *= r_cnt_ls;
-	    loc_stress_sum[LOC_STRESS_KIN][i][j][k] *= r_cnt_ls;
-	    loc_stress_sum[LOC_STRESS_ALL][i][j][k]
-	      = loc_stress_sum[LOC_STRESS_IMOL][i][j][k]
-	      + loc_stress_sum[LOC_STRESS_BOND][i][j][k]
-	      + loc_stress_sum[LOC_STRESS_ANGLE][i][j][k]
-	      + loc_stress_sum[LOC_STRESS_KIN][i][j][k];
+	    loc_stress_sum[INTER_MOL][i][j][k] *= r_cnt_ls;
+	    loc_stress_sum[BOND][i][j][k] *= r_cnt_ls;
+	    loc_stress_sum[ANGLE][i][j][k] *= r_cnt_ls;
+	    loc_stress_sum[KINETIC][i][j][k] *= r_cnt_ls;
+	    loc_stress_sum[NUM_LS_TYPE][i][j][k] // include all component.
+	      = loc_stress_sum[INTER_MOL][i][j][k]
+	      + loc_stress_sum[BOND][i][j][k]
+	      + loc_stress_sum[ANGLE][i][j][k]
+	      + loc_stress_sum[KINETIC][i][j][k];
 
-	    fprintf(fp[LOC_STRESS_IMOL], "%.10g ", loc_stress_sum[LOC_STRESS_IMOL][i][j][k]);
-	    fprintf(fp[LOC_STRESS_BOND], "%.10g ", loc_stress_sum[LOC_STRESS_BOND][i][j][k]);
-	    fprintf(fp[LOC_STRESS_ANGLE], "%.10g ", loc_stress_sum[LOC_STRESS_ANGLE][i][j][k]);
-	    fprintf(fp[LOC_STRESS_KIN], "%.10g ", loc_stress_sum[LOC_STRESS_KIN][i][j][k]);
-	    fprintf(fp[LOC_STRESS_ALL], "%.10g ", loc_stress_sum[LOC_STRESS_ALL][i][j][k]);
+	    fprintf(fp[LOC_STRESS_IMOL], "%.10g ", loc_stress_sum[INTER_MOL][i][j][k]);
+	    fprintf(fp[LOC_STRESS_BOND], "%.10g ", loc_stress_sum[BOND][i][j][k]);
+	    fprintf(fp[LOC_STRESS_ANGLE], "%.10g ", loc_stress_sum[ANGLE][i][j][k]);
+	    fprintf(fp[LOC_STRESS_KIN], "%.10g ", loc_stress_sum[KINETIC][i][j][k]);
+	    fprintf(fp[LOC_STRESS_ALL], "%.10g ", loc_stress_sum[NUM_LS_TYPE][i][j][k]);
 	  }
 	}
 	
