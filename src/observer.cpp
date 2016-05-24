@@ -12,12 +12,16 @@ Observer::Observer(const Parameter& param) {
   loc_dense.resize(param.grid_numb[1], 0.0);
   loc_vel.resize(param.grid_numb[2], double3(0.0));
   tail_cm_pos.resize((param.tailN > param.headN) ? param.tailN : param.headN, double3(0.0));
-  loc_stress_sum = new tensor3d [param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2]];
   const int all_ls_grid = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
-  for (int i = 0; i < all_ls_grid; i++)
-    for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
-	loc_stress_sum[i][j][k] = 0.0;
-      }
+  for (auto& ls : loc_stress_sum) {
+    ls.resize(all_ls_grid);
+  }
+
+  for (int t = 0; t < num_locstress_type; t++)
+    for (int i = 0; i < all_ls_grid; i++)
+      for (int j = 0; j < 3; j++)
+	for (int k = 0; k < 3; k++)
+	  loc_stress_sum[t][i][j][k] = 0.0;
 
   // for height calculation
   cut_grid = static_cast<int>(param.L.x / cut_r);
@@ -29,7 +33,6 @@ Observer::Observer(const Parameter& param) {
 
 Observer::~Observer() {
   for (int i = 0; i < NUM_FILE; i++) fclose(fp[i]);
-  delete [] loc_stress_sum;
 }
 
 std::string Observer::Type2Fname(const int type, const Parameter& param) {
@@ -50,8 +53,18 @@ std::string Observer::Type2Fname(const int type, const Parameter& param) {
     return param.cur_dir + "/fin_config.xyz";
   case HEIGHT_DIST:
     return param.cur_dir + "/height_dist.txt";
-  case LOC_STRESS:
-    return param.cur_dir + "/loc_stress.txt";
+  case LOC_STRESS_IMOL:
+    return param.cur_dir + "/loc_stress_imol.txt";
+  case LOC_STRESS_BOND:
+    return param.cur_dir + "/loc_stress_bond.txt";
+  case LOC_STRESS_ANGLE:
+    return param.cur_dir + "/loc_stress_angle.txt";
+  // case LOC_STRESS_DIHED:
+  //   return param.cur_dir + "/loc_stress_dihed.txt";
+  case LOC_STRESS_KIN:
+    return param.cur_dir + "/loc_stress_kin.txt";
+  case LOC_STRESS_ALL:
+    return param.cur_dir + "/loc_stress_all.txt";
   case DECOMP_ERROR:
     return param.cur_dir + "/f_decomp_error.txt";
   case VIRIAL_ERROR:
@@ -351,23 +364,29 @@ void Observer::DumpVirialError(const tensor3d& err) {
 	  err[0][0], err[0][1], err[0][2], err[1][0], err[1][1], err[1][2], err[2][0], err[2][1], err[2][2]);
 }
 
-void Observer::AddLocalStress(const dpdsystem& sDPD,
-			      const Parameter& param,
-			      const std::vector<std::vector<tensor3d> >& buf_lstress) {
+void Observer::AddLocalStress(const std::vector<std::vector<tensor3d> >& buf_lstress,
+			      const int type) {
   // potential term
   const int thnum = buf_lstress.size();
   const int grid_num = buf_lstress[0].size();
   for (int i = 0; i < thnum; i++)
     for (int g = 0; g < grid_num; g++)
-      for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
-	  loc_stress_sum[g][j][k] += buf_lstress[i][g][j][k];
-	}
-  
+      for (int j = 0; j < 3; j++)
+	for (int k = 0; k < 3; k++)
+	  loc_stress_sum[type][g][j][k] += buf_lstress[i][g][j][k];
+}
+
+void Observer::AddKineticLocalStress(const dpdsystem& sDPD,
+				     const Parameter& param) {
   // kinetic term
   for (int pi = 0; pi < Parameter::sys_size; pi++)
-    for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
-	loc_stress_sum[F_calculator::GetLSGrid1d(F_calculator::GetLSGrid(sDPD.pr[pi], param), param)][j][k] += sDPD.pv[pi][j] * sDPD.pv[pi][k];
+    for (int j = 0; j < 3; j++)
+      for (int k = 0; k < 3; k++) {
+	loc_stress_sum[KINETIC][F_calculator::GetLSGrid1d(F_calculator::GetLSGrid(sDPD.pr[pi], param), param)][j][k] += sDPD.pv[pi][j] * sDPD.pv[pi][k];
       }
+}
+
+void Observer::UpdateLocStress() {
   cnt_ls++;
 }
 
@@ -381,14 +400,39 @@ void Observer::DumpLocalStress(const Parameter& param) {
 	const double pos[] = {(ix + 0.5) * param.ls_grid_.x,
 			      (iy + 0.5) * param.ls_grid_.y,
 			      (iz + 0.5) * param.ls_grid_.z};
-	fprintf(fp[LOC_STRESS], "%.10g %.10g %.10g ", pos[0], pos[1], pos[2]);
+
+	fprintf(fp[LOC_STRESS_IMOL ], "%.10g %.10g %.10g ", pos[0], pos[1], pos[2]);
+	fprintf(fp[LOC_STRESS_BOND ], "%.10g %.10g %.10g ", pos[0], pos[1], pos[2]);
+	fprintf(fp[LOC_STRESS_ANGLE], "%.10g %.10g %.10g ", pos[0], pos[1], pos[2]);
+	fprintf(fp[LOC_STRESS_KIN  ], "%.10g %.10g %.10g ", pos[0], pos[1], pos[2]);
+	fprintf(fp[LOC_STRESS_ALL  ], "%.10g %.10g %.10g ", pos[0], pos[1], pos[2]);
+
 	for (int j = 0; j < 3; j++) {
 	  for (int k = 0; k < 3; k++) {
-	    loc_stress_sum[i][j][k] *= r_cnt_ls;
-	    fprintf(fp[LOC_STRESS], "%.10g ", loc_stress_sum[i][j][k]);
+	    loc_stress_sum[LOC_STRESS_IMOL][i][j][k] *= r_cnt_ls;
+	    loc_stress_sum[LOC_STRESS_BOND][i][j][k] *= r_cnt_ls;
+	    loc_stress_sum[LOC_STRESS_ANGLE][i][j][k] *= r_cnt_ls;
+	    loc_stress_sum[LOC_STRESS_KIN][i][j][k] *= r_cnt_ls;
+	    loc_stress_sum[LOC_STRESS_ALL][i][j][k]
+	      = loc_stress_sum[LOC_STRESS_IMOL][i][j][k]
+	      + loc_stress_sum[LOC_STRESS_BOND][i][j][k]
+	      + loc_stress_sum[LOC_STRESS_ANGLE][i][j][k]
+	      + loc_stress_sum[LOC_STRESS_KIN][i][j][k];
+
+	    fprintf(fp[LOC_STRESS_IMOL], "%.10g ", loc_stress_sum[LOC_STRESS_IMOL][i][j][k]);
+	    fprintf(fp[LOC_STRESS_BOND], "%.10g ", loc_stress_sum[LOC_STRESS_BOND][i][j][k]);
+	    fprintf(fp[LOC_STRESS_ANGLE], "%.10g ", loc_stress_sum[LOC_STRESS_ANGLE][i][j][k]);
+	    fprintf(fp[LOC_STRESS_KIN], "%.10g ", loc_stress_sum[LOC_STRESS_KIN][i][j][k]);
+	    fprintf(fp[LOC_STRESS_ALL], "%.10g ", loc_stress_sum[LOC_STRESS_ALL][i][j][k]);
 	  }
 	}
-	fprintf(fp[LOC_STRESS], "\n");
+	
+	fprintf(fp[LOC_STRESS_IMOL], "\n");
+	fprintf(fp[LOC_STRESS_BOND], "\n");
+	fprintf(fp[LOC_STRESS_ANGLE], "\n");
+	fprintf(fp[LOC_STRESS_KIN], "\n");
+	fprintf(fp[LOC_STRESS_ALL], "\n");
+	
 	i++;
       }
     }

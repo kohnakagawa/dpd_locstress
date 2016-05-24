@@ -35,15 +35,24 @@
 // #define RELAXED_BASE_POS
 #endif
 
-//structs
 enum par_prop {
   Water = 0, Hyphil, Hyphob,
   
   Numprop,
 };
 
+// Local stress type
+enum {
+  INTER_MOL = 0,
+  BOND,
+  ANGLE,
+  // DIHEDRAL,
+  KINETIC,
+  
+  NUM_TYPE,
+};
+
 struct Interactions {
-  //parameters 
   double                cf_sigma[Numprop][Numprop];
   double                cf_gamma[Numprop][Numprop];
   double                cf_spring;

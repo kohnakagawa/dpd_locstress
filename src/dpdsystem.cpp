@@ -417,7 +417,11 @@ void dpdsystem::Execute(const int all_time,
 
 #ifdef CALC_LOC_STRESS
     if (time >= Parameter::EQUIL_TIME) {
-      p_observer->AddLocalStress(*this, *p_param, f_calc.DumpCurLocStress());
+      p_observer->AddLocalStress(f_calc.DumpCurLocStress(INTER_MOL), INTER_MOL);
+      p_observer->AddLocalStress(f_calc.DumpCurLocStress(BOND), BOND);
+      p_observer->AddLocalStress(f_calc.DumpCurLocStress(ANGLE), ANGLE);
+      p_observer->AddKineticLocalStress(*this, *p_param);
+      p_observer->UpdateLocStress();
     }
 #endif
     

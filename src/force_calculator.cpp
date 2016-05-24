@@ -173,7 +173,7 @@ void F_calculator::CalcForceHalf(const double3*   __restrict pr,
 	for (int k = 0; k < 3; k++) for (int l = 0; l < 3; l++) sum_vir[k][l] += dF_a[k] * dr[l];
 
 #ifdef CALC_LOC_STRESS
-	DistPairForceStress(pr[pj], dr, dF_a, param);
+	DistPairForceStress(pr[pj], dr, dF_a, param, INTER_MOL);
 #endif
 	
 	d_lap_pot += cf_c * (6.0 - 4.0 * inv_dr);

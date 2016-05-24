@@ -13,12 +13,20 @@ class Observer {
     CONFIG_TEMP,
     FINAL_CONFIG,
     HEIGHT_DIST,
-    LOC_STRESS,
+    LOC_STRESS_IMOL,
+    LOC_STRESS_BOND,
+    LOC_STRESS_ANGLE,
+    // LOC_STRESS_DIHED,
+    LOC_STRESS_KIN,
+    LOC_STRESS_ALL,
     DECOMP_ERROR,
     VIRIAL_ERROR,
-    
+
     NUM_FILE,
   };
+
+  static constexpr int num_locstress_type = 5;
+  // static constexpr int num_locstress_type = 6; // include dihedral component
   
   FILE* fp[NUM_FILE] = {nullptr};
 
@@ -26,7 +34,8 @@ class Observer {
 
   std::vector<double> loc_tempera, loc_dense;
   std::vector<double3> loc_vel, tail_cm_pos;
-  tensor3d* loc_stress_sum = nullptr;
+  std::array<std::vector<tensor3d>, NUM_TYPE> loc_stress_sum;
+
   int cnt_ls = 0;
   
   //ASSUME: membrane is square shape.
@@ -64,6 +73,8 @@ public:
   void DumpFinalConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const int time);
   void DumpMembHeight(const dpdsystem& sDPD, const Parameter& param, const int time);
   void DumpForceDecompError(const double err);
-  void AddLocalStress(const dpdsystem& sDPD, const Parameter& param, const std::vector<std::vector<tensor3d> >& buf_lstress);
+  void AddLocalStress(const std::vector<std::vector<tensor3d> >& buf_lstress, const int type);
+  void AddKineticLocalStress(const dpdsystem& sDPD, const Parameter& param);
+  void UpdateLocStress();
   void DumpLocalStress(const Parameter& param);
 };

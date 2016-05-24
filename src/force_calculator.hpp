@@ -50,7 +50,8 @@ public:
   BindInfo binfo;
   std::vector<tensor3d> buf_vir;
   std::vector<double>  buf_lap_pot;
-  std::vector<std::vector<tensor3d> > buf_lstress;
+  
+  std::array<std::vector<std::vector<tensor3d> >, NUM_TYPE - 1> buf_lstress;
   double f_decomp_err = 0.0;
   tensor3d vir_sum;
   
@@ -129,7 +130,8 @@ public:
   void DistPairForceStress(const double3& rj,
 			   const double3& drji,
 			   const double3& dFji,
-			   const Parameter& param) {
+			   const Parameter& param,
+			   const int stress_type) {
     const int tid = omp_get_thread_num();
 
     const auto i_grid = GetLSGrid(rj + drji, param);
@@ -143,7 +145,7 @@ public:
       // simply add local stress
       const auto j_grid_1d = GetLSGrid1d(j_grid, param);
       for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++)
-	  buf_lstress[tid][j_grid_1d][i][j] += stress[i][j];
+	  buf_lstress[stress_type][tid][j_grid_1d][i][j] += stress[i][j];
     } else {
       // spread local stress
       const std::array<int, 3> diff_grid = {
@@ -160,7 +162,7 @@ public:
 	const auto base_grid = GetLSGrid1d(GetLSGrid(base_pos, param), param);
 	const auto d_lambda = lambda[i] - lambda[i - 1];
 	for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++)
-	    buf_lstress[tid][base_grid][j][k] += stress[j][k] * d_lambda;
+	    buf_lstress[stress_type][tid][base_grid][j][k] += stress[j][k] * d_lambda;
       }
     }
   }
@@ -184,9 +186,9 @@ public:
     auto dr42 = r2 - cross_point; MinImage(dr42, param);
     auto dr43 = r3 - cross_point; MinImage(dr43, param);
     
-    DistPairForceStress(cross_point, dr41, F1, param);
-    DistPairForceStress(cross_point, dr42, F2, param);
-    DistPairForceStress(cross_point, dr43, F3, param);
+    DistPairForceStress(cross_point, dr41, F1, param, ANGLE);
+    DistPairForceStress(cross_point, dr42, F2, param, ANGLE);
+    DistPairForceStress(cross_point, dr43, F3, param, ANGLE);
   }
 
   // General case
@@ -243,11 +245,11 @@ public:
     f_decomp_err += (F3_d - F3) * (F3_d - F3);
     f_decomp_err += F4_d * F4_d;
     
-    DistPairForceStress(r2, dr21, dF21, param);
-    DistPairForceStress(r4, dr41, dF41, param);
-    DistPairForceStress(r3, dr32, dF32, param);
-    DistPairForceStress(r4, dr42, dF42, param);
-    DistPairForceStress(r4, dr43, dF43, param);
+    DistPairForceStress(r2, dr21, dF21, param, ANGLE);
+    DistPairForceStress(r4, dr41, dF41, param, ANGLE);
+    DistPairForceStress(r3, dr32, dF32, param, ANGLE);
+    DistPairForceStress(r4, dr42, dF42, param, ANGLE);
+    DistPairForceStress(r4, dr43, dF43, param, ANGLE);
   }
 
   INLINE void StoreBondForce(const double3& __restrict r,
@@ -269,7 +271,7 @@ public:
     F[1] += Fbond;
 
 #ifdef CALC_LOC_STRESS
-    DistPairForceStress(r, dr, Fbond, param);
+    DistPairForceStress(r, dr, Fbond, param, BOND);
 #endif
   }
 
@@ -324,8 +326,12 @@ public:
     buf_lap_pot.assign(buf_lap_pot.size(), 0.0);
     buf_vir.assign(buf_vir.size(), tensor3d{{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}});
 
-    for (size_t i = 0; i < buf_lstress.size(); i++)
-      buf_lstress[i].assign(buf_lstress[i].size(), tensor3d{{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}});
+    for (int i = 0; i < NUM_TYPE; i++) {
+      const int num_lstress_grid = buf_lstress[i].size();
+      for (int j = 0; j < num_lstress_grid; j++) {
+	buf_lstress[i][j].assign(buf_lstress[i][j].size(), tensor3d{{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}});
+      }
+    }
     f_decomp_err = 0.0;
   }
 
@@ -466,10 +472,13 @@ public:
     const int th_numb   = omp_get_max_threads();
     buf_vir.resize(th_numb, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
     buf_lap_pot.resize(th_numb, 0.0);
-    buf_lstress.resize(th_numb);
+    
     const auto all_ls_grid = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
-    for (int i = 0; i < th_numb; i++) {
-      buf_lstress[i].resize(all_ls_grid, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+    for (int i = 0; i < NUM_TYPE; i++) {
+      buf_lstress[i].resize(th_numb);
+      for (int j = 0; j < th_numb; j++) {
+	buf_lstress[i][j].resize(all_ls_grid, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+      }
     }
     vir_sum.fill({0.0, 0.0, 0.0});
     DevideCell(param);
@@ -530,10 +539,12 @@ public:
     tensor3d vir_sum_ls = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
     const int thnum = buf_lstress.size();
     const int grid_num = buf_lstress[0].size();
-    for (int i = 0; i < thnum; i++)
-      for (int g = 0; g < grid_num; g++)
-	for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
-	    vir_sum_ls[j][k] += buf_lstress[i][g][j][k];
+    
+    for (int t = 0; t < NUM_TYPE; t++)
+      for (int i = 0; i < thnum; i++)
+	for (int g = 0; g < grid_num; g++)
+	  for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++) {
+	      vir_sum_ls[j][k] += buf_lstress[t][i][g][j][k];
 	  }
     return vir_sum_ls - vir_sum;
   }
@@ -542,8 +553,8 @@ public:
     return std::sqrt(f_decomp_err);
   }
 
-  const std::vector<std::vector<tensor3d> >& DumpCurLocStress() const {
-    return buf_lstress;
+  const std::vector<std::vector<tensor3d> >& DumpCurLocStress(const int type) const {
+    return buf_lstress[type];
   }
 };
 
