@@ -544,8 +544,8 @@ public:
 
   tensor3d DumpVirialError() const {
     tensor3d vir_sum_ls = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    const int thnum = buf_lstress.size();
-    const int grid_num = buf_lstress[0].size();
+    const int thnum = buf_lstress[0].size();
+    const int grid_num = buf_lstress[0][0].size();
     
     for (int t = 0; t < ls_type_pot; t++)
       for (int i = 0; i < thnum; i++)
