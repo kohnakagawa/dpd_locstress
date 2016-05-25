@@ -38,13 +38,13 @@ class B_sorter {
   }
 
   void ApplyPeriodicBoundary(int* q, const Parameter& param) const {
-    if (q[0]<0 || q[0] >= param.grid_numb[0]) 
+    if (q[0] < 0 || q[0] >= param.grid_numb[0])
       q[0] -= static_cast<int>(q[0] * param.grid_numb[0] / std::abs(q[0]));
 
-    if (q[1]<0 || q[1] >= param.grid_numb[1]) 
+    if (q[1] < 0 || q[1] >= param.grid_numb[1])
       q[1] -= static_cast<int>(q[1] * param.grid_numb[1] / std::abs(q[1]));
 
-    if (q[2]<0 || q[2] >= param.grid_numb[2]) 
+    if (q[2] < 0 || q[2] >= param.grid_numb[2])
       q[2] -= static_cast<int>(q[2] * param.grid_numb[2] / std::abs(q[2]));
   }
 

@@ -71,9 +71,14 @@ public:
 
   static INLINE int GetLSGrid1d(std::array<int, 3> grid_id,
 				const Parameter& param) {
-    if (grid_id[0] == param.ls_grid_num_[0]) grid_id[0]--;
-    if (grid_id[1] == param.ls_grid_num_[1]) grid_id[1]--;
-    if (grid_id[2] == param.ls_grid_num_[2]) grid_id[2]--;
+    if (grid_id[0] < 0 || grid_id[0] >= param.ls_grid_num_[0])
+      grid_id[0] -= static_cast<int>(grid_id[0] * param.ls_grid_num_[0] / std::abs(grid_id[0]));
+
+    if (grid_id[1] < 0 || grid_id[1] >= param.ls_grid_num_[1])
+      grid_id[1] -= static_cast<int>(grid_id[1] * param.ls_grid_num_[1] / std::abs(grid_id[1]));
+
+    if (grid_id[2] < 0 || grid_id[2] >= param.ls_grid_num_[2])
+      grid_id[2] -= static_cast<int>(grid_id[2] * param.ls_grid_num_[2] / std::abs(grid_id[2]));
 
     const auto ret = grid_id[0] + param.ls_grid_num_[0] * (grid_id[1] + grid_id[2] * param.ls_grid_num_[1]);
 #ifdef DEBUG
