@@ -76,6 +76,12 @@ struct vector3{
     x /= cf; y /= cf; z /= cf;
     return *this;
   }
+
+  INLINE const vector3<T> operator ^ (const vector3<T>& rhs) const {
+    return vector3<T>((y * rhs.z - z * rhs.y),
+		      (z * rhs.x - x * rhs.z),
+		      (x * rhs.y - y * rhs.x));
+  }
   
   INLINE T& operator [] (const int i) {
     return (&x)[i];
