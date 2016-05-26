@@ -174,6 +174,14 @@ public:
     }
   }
 
+  // NOTE: Central force decomposition
+  void Decompose3NCfd(const double3& r1, const double3& r2, const double3& r3,
+		      const double3& F1, const double3& F2, const double3& F3,
+		      const Parameter& param) {
+    const double3 r13_half = (r1 + r3) * 0.5;
+    Decompose3N(r1, r2, r3, r13_half, F1, F2, F3, param);
+  }
+  
   void Decompose3N(const double3& r1, const double3& r2, const double3& r3,
 		   const double3& F1, const double3& F2, const double3& F3,
 		   const Parameter& param) {
@@ -318,14 +326,16 @@ public:
     F[2] += Ftb1;
 
 #ifdef CALC_LOC_STRESS
-#ifdef RELAXED_BASE_POS
+#ifdef CENTRAL_FORCE
+    Decompose3NCfd(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
+#elif defined RELAXED_BASE_POS
     Decompose3N(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
-#else
+#else // general case
     const double3 bi_vec = Ftb_sum / Ftb_sum.norm2();
     const double3 base_pos = r[1] + bi_vec * param.ls_lambda;
     Decompose3N(r[0], r[1], r[2], base_pos, -Ftb0, Ftb_sum, Ftb1, param);
-#endif
-#endif
+#endif // end of CENTRAL_FORCE
+#endif // end of CALC_LOC_STRESS
   }
 
   INLINE void ClearForce(double3* force) {

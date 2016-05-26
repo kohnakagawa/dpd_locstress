@@ -33,6 +33,7 @@
 
 #ifdef CALC_LOC_STRESS
 // #define RELAXED_BASE_POS
+#define CENTRAL_FORCE
 #endif
 
 enum par_prop {
