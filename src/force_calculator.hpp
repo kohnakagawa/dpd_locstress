@@ -62,9 +62,9 @@ public:
   static INLINE std::array<int, 3> GetLSGrid(const double3& r,
 					     const Parameter& param) {
     const std::array<int, 3> grid_id = {
-      static_cast<int>(r.x * param.i_ls_grid_.x),
-      static_cast<int>(r.y * param.i_ls_grid_.y),
-      static_cast<int>(r.z * param.i_ls_grid_.z)
+      static_cast<int>(std::floor(r.x * param.i_ls_grid_.x)),
+      static_cast<int>(std::floor(r.y * param.i_ls_grid_.y)),
+      static_cast<int>(std::floor(r.z * param.i_ls_grid_.z))
     };
     return grid_id;
   }
@@ -354,8 +354,8 @@ public:
     p_num_band[0] = 0;
     p_num_band[1] = param.grid_numb[2] / th_numb / 2;
     p_num_band[2] = param.grid_numb[2] / th_numb - p_num_band[1];
-
-    assert(param.grid_numb[2] % numb_band == 0);
+    
+    CHECK_EQUATION(param.grid_numb[2] % numb_band == 0, param.grid_numb[2]);
   }
 
   void RegistNearIdx(const int& itr_id,
