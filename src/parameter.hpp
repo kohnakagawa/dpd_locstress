@@ -373,6 +373,9 @@ public:
 #ifdef RELAXED_BASE_POS
     ost << "RELAXED_BASE_POS is defined.\n";
 #endif
+#ifdef CENTRAL_FORCE
+    ost << "CENTRAL_FORCE is defined.\n";
+#endif
 #endif
 
 #undef PRT_WITH_TAG
