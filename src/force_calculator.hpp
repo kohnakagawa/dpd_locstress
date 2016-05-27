@@ -3,46 +3,19 @@
 #include "parameter.hpp"
 #include "allocate.hpp"
 #include "rng.hpp"
+#include "lapack_wrapper.hpp"
 #include <numeric>
 #include <omp.h>
 #include <algorithm>
 #include <iomanip>
 
+#ifdef __INTEL_COMPILER
+#define CALL_DGELSD call_mkl_dgelsd
+#else
+#define CALL_DGELSD call_f77_dgelsd
+#endif
+
 #define INLINE __attribute__((always_inline))
-
-// LAPACK routine
-extern "C" {
-  void dgelsd_(int* m, int* n, int* nrhs, double* a, int* lda,
-	       double* b, int* ldb, double* s, double* rcond, int* rank,
-	       double* work, int* lwork, int* iwork, int* info);
-}
-
-template<int nRows, int nCols>
-void call_dgelsd(std::array<double, nRows * nCols>& D,
-		 std::array<double, nRows>& b,
-		 double rcond = 1.0e-12) {
-  std::array<double, nCols> s; s.fill(0.0);
-
-  // From https://software.intel.com/sites/products/documentation/doclib/mkl_sa/11/mkl_lapack_examples/dgelsd_ex.c.htm
-  int nrows = nRows, ncols = nCols, nRHS = 1, info = -1, lwork = -1, rank = -1;
-  int iwork[3 * nRows * 0 + 11 * nCols];
-  double wkopt = 0.0;
-
-  dgelsd_(&nrows, &ncols, &nRHS, &D[0], &nrows,
-	  &b[0], &nrows, &s[0], &rcond, &rank,
-	  &wkopt, &lwork, iwork, &info);
-  lwork = static_cast<int>(wkopt);
-  double* work = new double [lwork];
-  dgelsd_(&nrows, &ncols, &nRHS, &(D[0]), &nrows,
-	  &b[0], &nrows, &s[0], &rcond, &rank,
-	  work, &lwork, iwork, &info);
-  if (info > 0) {
-    std::cerr << "The algorithm computing SVD failed to converge\n";
-    std::cerr << "The least squares solution could not be computed.\n";
-    std::exit(1);
-  }
-  delete [] work;
-}
 
 class F_calculator {
 public:
@@ -178,28 +151,23 @@ public:
   void Decompose3NCfd(const double3& r1, const double3& r2, const double3& r3,
 		      const double3& F1, const double3& F2, const double3& F3,
 		      const Parameter& param) {
-    const double3 r13_half = (r1 + r3) * 0.5;
-    Decompose3N(r1, r2, r3, r13_half, F1, F2, F3, param);
+    auto dr13 = r3 - r1; MinImage(dr13, param);
+    auto base_pos = r1 + 0.5 * dr13; ApplyPBC(base_pos, param);
+    Decompose3N(r1, r2, r3, base_pos, F1, F2, F3, param);
   }
   
   void Decompose3N(const double3& r1, const double3& r2, const double3& r3,
 		   const double3& F1, const double3& F2, const double3& F3,
 		   const Parameter& param) {
-    constexpr int nRows = 3, nCols = 2;
-    std::array<double, nRows * nCols> D;
-    std::array<double, nRows> b;
-    D[nRows * 0 + 0] = -F1.x; D[nRows * 1 + 0] = F2.x;
-    D[nRows * 0 + 1] = -F1.y; D[nRows * 1 + 1] = F2.y;
-    D[nRows * 0 + 2] = -F1.z; D[nRows * 1 + 2] = F2.z;
-    b[0] = r1.x - r2.x; b[1] = r1.y - r2.y; b[2] = r1.z - r2.z;
-    
-    call_dgelsd<nRows, nCols>(D, b);
-    
-    const double3 cross_point = r1 + b[0] * F1;
+    auto dr21 = r1 - r2; MinImage(dr21, param);
+    auto cross_point = r2 + F2 * (dr21 * dr21 / (F2 * dr21));
 
-    auto dr41 = r1 - cross_point; MinImage(dr41, param);
-    auto dr42 = r2 - cross_point; MinImage(dr42, param);
-    auto dr43 = r3 - cross_point; MinImage(dr43, param);
+    auto dr42 = r2 - cross_point;
+    auto dr41 = dr42 + dr21;
+    auto dr23 = r3 - r2; MinImage(dr23, param);
+    auto dr43 = dr42 + dr23;
+
+    ApplyPBC(cross_point, param);
     
     DistPairForceStress(cross_point, dr41, F1, param, ANGLE);
     DistPairForceStress(cross_point, dr42, F2, param, ANGLE);
@@ -216,7 +184,7 @@ public:
     auto dr42 = r2 - r4; MinImage(dr42, param);
     auto dr43 = r3 - r4; MinImage(dr43, param);
 
-    constexpr int nRows = 12, nCols = 5;
+    constexpr int nRows = 12, nCols = 5, nRhs = 1;
 
     std::array<double, nRows * nCols> D; D.fill(0.0);
     std::array<double, nRows> b;
@@ -241,7 +209,7 @@ public:
     D[nRows * 1 + 11] = -dr41.z; D[nRows * 3 + 11] = -dr42.z; D[nRows * 4 + 11] = -dr43.z;
     b[9] = 0.0;  b[10] = 0.0; b[11] = 0.0;
 
-    call_dgelsd<nRows, nCols>(D, b);
+    CALL_DGELSD<nRows, nCols, nRhs>(D, b);
 
     const double3 dF21(b[0] * dr21.x, b[0] * dr21.y, b[0] * dr21.z);
     const double3 dF41(b[1] * dr41.x, b[1] * dr41.y, b[1] * dr41.z);
@@ -332,7 +300,8 @@ public:
     Decompose3N(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
 #else // general case
     const double3 bi_vec = Ftb_sum / Ftb_sum.norm2();
-    const double3 base_pos = r[1] + bi_vec * param.ls_lambda;
+    double3 base_pos = r[1] + bi_vec * param.ls_lambda;
+    ApplyPBC(base_pos, param);
     Decompose3N(r[0], r[1], r[2], base_pos, -Ftb0, Ftb_sum, Ftb1, param);
 #endif // end of CENTRAL_FORCE
 #endif // end of CALC_LOC_STRESS

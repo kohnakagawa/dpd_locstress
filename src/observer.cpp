@@ -379,11 +379,14 @@ void Observer::AddLocalStress(const std::vector<std::vector<tensor3d> >& buf_lst
 void Observer::AddKineticLocalStress(const dpdsystem& sDPD,
 				     const Parameter& param) {
   // kinetic term
-  for (int pi = 0; pi < Parameter::sys_size; pi++)
-    for (int j = 0; j < 3; j++)
+  for (int pi = 0; pi < Parameter::sys_size; pi++) {
+    const int grid_id = F_calculator::GetLSGrid1d(F_calculator::GetLSGrid(sDPD.pr[pi], param), param);
+    for (int j = 0; j < 3; j++) {
       for (int k = 0; k < 3; k++) {
-	loc_stress_sum[KINETIC][F_calculator::GetLSGrid1d(F_calculator::GetLSGrid(sDPD.pr[pi], param), param)][j][k] += sDPD.pv[pi][j] * sDPD.pv[pi][k];
+	loc_stress_sum[KINETIC][grid_id][j][k] += sDPD.pv[pi][j] * sDPD.pv[pi][k];
       }
+    }
+  }
 }
 
 void Observer::UpdateLocStress() {
