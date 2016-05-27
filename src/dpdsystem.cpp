@@ -341,8 +341,8 @@ void dpdsystem::Execute(const int all_time,
   ChemManager chemmanage;
   F_calculator f_calc(*p_param);
   B_sorter bsorter(*p_param);
-  RNG rng(1234, omp_get_max_threads());
-  // RNG rng( (size_t)time(NULL), omp_get_max_threads());
+  // RNG rng(1234, omp_get_max_threads());
+  RNG rng(static_cast<size_t>(time(nullptr)), omp_get_max_threads());
   p_observer->Initialize(*p_param);
 
   // read restart configuration.
