@@ -15,7 +15,10 @@ class Parameter {
     std::ifstream fin(fname.c_str());
     CHECK_FILE_OPEN(fin);
 
-    fin >> tempera >> sys_size >> headN >> tailN >> dt >> grid_leng.x >> L.x >> L.y >> L.z >> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof >> ls_grid_.x >> ls_grid_.y >> ls_grid_.z >> ls_lambda;
+    fin >> tempera >> sys_size >> headN >> tailN >> dt >> grid_leng.x >> L.x >> L.y >> L.z
+	>> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof
+	>> ls_grid_.x >> ls_grid_.y >> ls_grid_.z >> ls_lambda
+	>> all_time_ >> time_step_mic_ >> time_step_mac_ >> time_step_vt_ >> chem_beg_;
 
     CHECK_FILESTREAM_IS_OK(fin);
     CHECK_FILE_IS_EOF(fin);
@@ -114,6 +117,12 @@ class Parameter {
 
   void CheckMacroParam() const {
     CHECK_EQUATION(sys_size > 0, sys_size);
+    
+    CHECK_EQUATION(all_time_ > 0, all_time_);
+    CHECK_EQUATION(time_step_mic_ > 0, time_step_mic_);
+    CHECK_EQUATION(time_step_mac_ > 0, time_step_mac_);
+    CHECK_EQUATION(time_step_vt_ > 0, time_step_vt_);
+    CHECK_EQUATION(chem_beg_ > 0, chem_beg_);
 
     CHECK_EQUATION(wN > 0, wN);
     CHECK_EQUATION(hN > 0, hN);
@@ -211,6 +220,8 @@ public:
 
   static int sys_size;
   
+  int all_time_ = -1, time_step_mic_ = -1, time_step_mac_ = -1, time_step_vt_ = -1, chem_beg_ = -1;
+  
   int wN = -1, bN = -1, hN = -1, ampN = -1, tailN = -1, headN = -1;
   double dt		= std::numeric_limits<double>::signaling_NaN();
   double tempera	= std::numeric_limits<double>::signaling_NaN();
@@ -249,6 +260,26 @@ public:
   
   BindInfo GetBindInform() const {
     return binfo;
+  }
+
+  int all_time() const {
+    return all_time_;
+  }
+  
+  int time_step_mic() const {
+    return time_step_mic_;
+  }
+  
+  int time_step_mac() const {
+    return time_step_mac_;
+  }
+
+  int time_step_vt() const {
+    return time_step_vt_;
+  }
+
+  int chem_beg() const {
+    return chem_beg_;
   }
   
   void LoadParam() {
@@ -347,7 +378,7 @@ public:
 #undef PRT_WITH_TAG
   }
 
-  void DumpGraphicDat(int all_time, int time_step) const {
+  void DumpGraphicDat(const int all_time, const int time_step) const {
     std::string str;
     str = cur_dir + "/macro_data.txt";
     std::ofstream fout(str.c_str());
