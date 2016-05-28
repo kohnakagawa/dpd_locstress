@@ -69,6 +69,8 @@ std::string Observer::Type2Fname(const int type, const Parameter& param) {
     return param.cur_dir + "/f_decomp_error.txt";
   case VIRIAL_ERROR:
     return param.cur_dir + "/virial_error.txt";
+  case MEMB_CM_DRIFT:
+    return param.cur_dir + "/memb_cm_drift.txt";
   default:
     std::cerr << "Unknown file type.\n";
     std::exit(1);
@@ -246,6 +248,17 @@ void Observer::CalcMembraneHeight(const dpdsystem& sDPD) {
     assert(hei_elem[i] != 0);
     hei[i] /= hei_elem[i];
   }
+}
+
+double3 Observer::CalcMembraneCMDrift(const dpdsystem& sDPD, const Parameter& param) {
+  double3 sum_pos(0.0, 0.0, 0.0);
+  for (int i = 0; i < Parameter::sys_size; i++) {
+    if (sDPD.prop[i] != Water) {
+      sum_pos += sDPD.pr[i];
+    }
+  }
+  sum_pos /= (param.hN + param.bN);
+  return sum_pos;
 }
 
 void Observer::DumpMacroVal(const dpdsystem& sDPD, const Parameter& param) {
@@ -440,4 +453,9 @@ void Observer::DumpLocalStress(const Parameter& param) {
       }
     }
   }
+}
+
+void Observer::DumpMembraneCMDrift(const dpdsystem& sDPD, const Parameter& param) {
+  const auto cm_pos = CalcMembraneCMDrift(sDPD, param);
+  fprintf(fp[MEMB_CM_DRIFT], "%.10g %.10g %.10g\n", cm_pos.x, cm_pos.y, cm_pos.z);
 }

@@ -211,7 +211,8 @@ public:
     TAIL_PART = ALL_UNIT_N - REAC_PART,
     BUF_SIZE = 400,
     COL_FREQ = 10,
-    EQUIL_TIME = 500000,
+    EQUIL_TIME = 100000,
+    LS_EQUIL_TIME = 5000,
   };
 
   static constexpr double b_leng   = 0.5;

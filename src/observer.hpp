@@ -21,6 +21,7 @@ class Observer {
     LOC_STRESS_ALL,
     DECOMP_ERROR,
     VIRIAL_ERROR,
+    MEMB_CM_DRIFT,
 
     NUM_FILE,
   };
@@ -48,14 +49,15 @@ class Observer {
     return iz + cut_grid * ix;
   }
   
-  double	CalcKinTempera(const dpdsystem& sDPD);
-  double	CalcDiffs(const dpdsystem& sDPD);
-  double	CalcGyration(const dpdsystem& sDPD,const Parameter& param);
-  double	CalcThickness(const dpdsystem& sDPD,const Parameter& param);
-  double	CalcOrientOrder(const dpdsystem& sDPD,const Parameter& param);  
-  void          CalcMembraneHeight(const dpdsystem& sDPD);
+  double CalcKinTempera(const dpdsystem& sDPD);
+  double CalcDiffs(const dpdsystem& sDPD);
+  double CalcGyration(const dpdsystem& sDPD, const Parameter& param);
+  double CalcThickness(const dpdsystem& sDPD, const Parameter& param);
+  double CalcOrientOrder(const dpdsystem& sDPD, const Parameter& param);
+  void   CalcMembraneHeight(const dpdsystem& sDPD);
+  double3 CalcMembraneCMDrift(const dpdsystem& sDPD, const Parameter& param);
   
-  void DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const int time, FILE* fp);
+  void   DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, const int time, FILE* fp);
   
 public:
   explicit Observer(const Parameter& param);
@@ -74,4 +76,5 @@ public:
   void AddKineticLocalStress(const dpdsystem& sDPD, const Parameter& param);
   void UpdateLocStress();
   void DumpLocalStress(const Parameter& param);
+  void DumpMembraneCMDrift(const dpdsystem& sDPD, const Parameter& param);
 };

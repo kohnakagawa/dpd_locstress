@@ -321,6 +321,7 @@ int dpdsystem::GenParticles(ChemManager& chemmanage) {
   const auto cur_time = ReadParticleConfig();
   SetBondedParameter();
   chemmanage.RegistLipidIdx(cheminfo);
+  RemoveCMDrift();
   return cur_time;
 }
 
@@ -351,12 +352,16 @@ void dpdsystem::Execute(const int all_time,
 #ifdef ADD_POSRES
   SetPosresPrtcl();
 #endif
-
+#ifdef CALC_LOC_STRESS
+  const auto ls_equil_time = beg_time + Parameter::LS_EQUIL_TIME;
+#endif
+  const auto cm_drift_adj_time = beg_time + Parameter::EQUIL_TIME;
+  
   // main MD loop
   const auto end_time = beg_time + all_time;
   FirstStep(bsorter, chemmanage, f_calc);
   for (auto time = beg_time; time < end_time; time++) {
-    if (time == Parameter::EQUIL_TIME) RemoveCMDrift();
+    if (time == cm_drift_adj_time) RemoveCMDrift();
 
     VelocVerlet1();
 
@@ -406,7 +411,10 @@ void dpdsystem::Execute(const int all_time,
 #ifdef CALC_HEIGHT
       p_observer->DumpMembHeight(*this, *p_param, time);
 #endif
+#ifdef CALC_LOC_STRESS
       p_observer->DumpForceDecompError(f_calc.DumpFdecompError());
+      p_observer->DumpMembraneCMDrift(*this, *p_param);
+#endif
     }
     
     if (time % time_step_vt == 0) {
@@ -416,7 +424,7 @@ void dpdsystem::Execute(const int all_time,
     }
 
 #ifdef CALC_LOC_STRESS
-    if (time >= Parameter::EQUIL_TIME) {
+    if (time >= ls_equil_time) {
       p_observer->AddLocalStress(f_calc.DumpCurLocStress(INTER_MOL), INTER_MOL);
       p_observer->AddLocalStress(f_calc.DumpCurLocStress(BOND), BOND);
       p_observer->AddLocalStress(f_calc.DumpCurLocStress(ANGLE), ANGLE);
