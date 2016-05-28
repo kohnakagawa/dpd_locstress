@@ -9,15 +9,16 @@
 
 Observer::Observer(const Parameter& param) {
   loc_tempera.resize(param.grid_numb[1], 0.0);
-  loc_dense.resize(param.grid_numb[1], 0.0);
-  loc_vel.resize(param.grid_numb[2], double3(0.0));
+  for (size_t t = 0; t < loc_dense.size(); t++)
+    loc_dense[t].resize(param.grid_numb[1], 0.0);
+  loc_vel.resize(param.grid_numb[1], double3(0.0));
   tail_cm_pos.resize((param.tailN > param.headN) ? param.tailN : param.headN, double3(0.0));
   const int all_ls_grid = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
   for (size_t i = 0; i < loc_stress_sum.size(); i++) {
     loc_stress_sum[i].resize(all_ls_grid);
   }
 
-  for (int t = 0; t < NUM_LS_TYPE + 1; t++)
+  for (size_t t = 0; t < loc_stress_sum.size(); t++)
     for (int i = 0; i < all_ls_grid; i++)
       for (int j = 0; j < 3; j++)
 	for (int k = 0; k < 3; k++)
@@ -324,32 +325,42 @@ void Observer::DumpPrtclConfig(const dpdsystem &sDPD, const ChemInfo& cheminfo, 
 }
 
 void Observer::DumpLocalVal(const dpdsystem &sDPD, const Parameter& param) {
-  const double3* t_r = sDPD.pr;
-  const double3* t_v = sDPD.pv;
-
-  loc_tempera.assign(loc_tempera.size(), 0.0);
-  loc_dense.assign(loc_dense.size(), 0.0);
-  loc_vel.assign(loc_vel.size(), double3(0.0));
+  // clear old data
+  std::fill(loc_tempera.begin(), loc_tempera.end(), 0.0);
+  for (size_t t = 0; t < loc_dense.size(); t++)
+    std::fill(loc_dense[t].begin(), loc_dense[t].end(), 0.0);
+  std::fill(loc_vel.begin(), loc_vel.end(), double3(0.0, 0.0, 0.0));
 
   for (int i = 0; i < Parameter::sys_size; i++) {
-    const double3 pos = t_r[i];
-    const double3 vel = t_v[i];
+    const auto pos = sDPD.pr[i];
+    const auto vel = sDPD.pv[i];
+    const auto prp = sDPD.prop[i];
     int hash = static_cast<int>(pos.y * param.i_grid_leng.y);
     if (hash == param.grid_numb[1]) hash--;
-    loc_tempera[hash] += vel*vel;
-    loc_dense[hash]   += 1.0;
-    loc_vel[hash] += vel;
+    loc_tempera[hash]        += vel * vel;
+    loc_dense[prp][hash]     += 1.0;
+    loc_dense[Numprop][hash] += 1.0;
+    loc_vel[hash]            += vel;
   }
 
-  for (size_t i = 0; i < loc_tempera.size(); i++) {
-    loc_vel[i] /= loc_dense[i];
-    loc_tempera[i] /= loc_dense[i] * 3.0;
-    loc_dense[i] /= param.grid_leng.y * param.L.x * param.L.z;
+  const auto num_loc_grid = loc_tempera.size();
+  for (size_t i = 0; i < num_loc_grid; i++) {
+    loc_vel[i]     /= loc_dense[Numprop][i];
+    loc_tempera[i] /= loc_dense[Numprop][i] * 3.0;
   }
+
+  const double r_loc_vol = 1.0 / (param.grid_leng.y * param.L.x * param.L.z);
+  for (size_t t = 0; t < loc_dense.size(); t++)
+    for (size_t i = 0; i < num_loc_grid; i++)
+      loc_dense[t][i] *= r_loc_vol;
   
   for (size_t i = 0; i < loc_tempera.size(); i++) {
     const double cur_y = (i + 0.5) * param.grid_leng.y;
-    fprintf(fp[LOCAL_VAL], "%f %.15g %.15g %.15g %.15g %.15g\n", cur_y, loc_tempera[i], loc_dense[i], loc_vel[i].x, loc_vel[i].y, loc_vel[i].z);
+    fprintf(fp[LOCAL_VAL], "%f %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g\n",
+	    cur_y,
+	    loc_tempera[i],
+	    loc_dense[Water][i], loc_dense[Hyphil][i], loc_dense[Hyphob][i], loc_dense[Numprop][i],
+	    loc_vel[i].x, loc_vel[i].y, loc_vel[i].z);
   }
 }
 

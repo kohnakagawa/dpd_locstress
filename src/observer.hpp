@@ -30,7 +30,8 @@ class Observer {
 
   std::string Type2Fname(const int type, const Parameter& param);
 
-  std::vector<double> loc_tempera, loc_dense;
+  std::vector<double> loc_tempera;
+  std::array<std::vector<double>, Numprop + 1> loc_dense;
   std::vector<double3> loc_vel, tail_cm_pos;
   std::array<std::vector<tensor3d>, NUM_LS_TYPE + 1> loc_stress_sum;
 
