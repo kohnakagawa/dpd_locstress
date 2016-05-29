@@ -25,6 +25,10 @@ void F_calculator::CalcBondBend<2>(const double3*   __restrict	pr,
   
   force[l_dst[0]] -= Fbond;
   force[l_dst[1]] += Fbond;
+
+#ifdef CALC_LOC_STRESS
+    DistPairForceStress(pr[l_dst[0]], dr, Fbond, param, BOND);
+#endif
 }
 
 template<>
