@@ -22,6 +22,7 @@ class Observer {
     DECOMP_ERROR,
     VIRIAL_ERROR,
     MEMB_CM_DRIFT,
+    ACCUM_STRESS,
 
     NUM_FILE,
   };
@@ -78,4 +79,5 @@ public:
   void UpdateLocStress();
   void DumpLocalStress(const Parameter& param);
   void DumpMembraneCMDrift(const dpdsystem& sDPD, const Parameter& param);
+  void DumpAccumulatedStress(const double a_stress, const Parameter& param);
 };

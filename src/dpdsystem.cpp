@@ -414,6 +414,7 @@ void dpdsystem::Execute(const int all_time,
 #ifdef CALC_LOC_STRESS
       p_observer->DumpForceDecompError(f_calc.DumpFdecompError());
       p_observer->DumpMembraneCMDrift(*this, *p_param);
+      p_observer->DumpAccumulatedStress(f_calc.DumpStressAccumu(), *p_param);
 #endif
     }
     

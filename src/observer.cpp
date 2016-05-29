@@ -72,6 +72,8 @@ std::string Observer::Type2Fname(const int type, const Parameter& param) {
     return param.cur_dir + "/virial_error.txt";
   case MEMB_CM_DRIFT:
     return param.cur_dir + "/memb_cm_drift.txt";
+  case ACCUM_STRESS:
+    return param.cur_dir + "/accmulated_stress.txt";
   default:
     std::cerr << "Unknown file type.\n";
     std::exit(1);
@@ -469,4 +471,9 @@ void Observer::DumpLocalStress(const Parameter& param) {
 void Observer::DumpMembraneCMDrift(const dpdsystem& sDPD, const Parameter& param) {
   const auto cm_pos = CalcMembraneCMDrift(sDPD, param);
   fprintf(fp[MEMB_CM_DRIFT], "%.10g %.10g %.10g\n", cm_pos.x, cm_pos.y, cm_pos.z);
+}
+
+void Observer::DumpAccumulatedStress(const double a_stress, const Parameter& param) {
+  const auto strs_per_angle = a_stress / (param.ampN * (Parameter::ALL_UNIT_N - 3 + 1));
+  fprintf(fp[ACCUM_STRESS], "%.10g\n", strs_per_angle);
 }

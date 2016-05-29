@@ -27,7 +27,7 @@ public:
   static constexpr int ls_type_pot = NUM_LS_TYPE - 1;
   
   std::array<std::vector<std::vector<tensor3d> >, ls_type_pot> buf_lstress;
-  double f_decomp_err = 0.0;
+  double f_decomp_err = 0.0, accum_stress = 0.0;
   tensor3d vir_sum;
   
   int grid_numbtw = -1, numb_band = -1, p_num_band[3] = {-1, -1, -1};
@@ -107,6 +107,7 @@ public:
     r.z -= std::floor(r.z * param.iL.z) * param.L.z;
   }
   
+  // NOTE: this function is thread safe.
   void DistPairForceStress(const double3& rj,
 			   const double3& drji,
 			   const double3& dFji,
@@ -175,6 +176,7 @@ public:
   }
 
   // General case
+  // NOTE: this function is NOT thread safe.
   void Decompose3N(const double3& r1, const double3& r2, const double3& r3, const double3& r4, // in-plane (ri-rj ^ ri-rk) position
 		   const double3& F1, const double3& F2, const double3& F3,
 		   const Parameter& param) {
@@ -227,6 +229,12 @@ public:
     f_decomp_err += (F2_d - F2) * (F2_d - F2);
     f_decomp_err += (F3_d - F3) * (F3_d - F3);
     f_decomp_err += F4_d * F4_d;
+
+    accum_stress += dF21.norm2() * dr21.norm2()
+      + dF41.norm2() * dr41.norm2()
+      + dF32.norm2() * dr32.norm2()
+      + dF42.norm2() * dr42.norm2()
+      + dF43.norm2() * dr43.norm2();
     
     DistPairForceStress(r2, dr21, dF21, param, ANGLE);
     DistPairForceStress(r4, dr41, dF41, param, ANGLE);
@@ -319,6 +327,7 @@ public:
       }
     }
     f_decomp_err = 0.0;
+    accum_stress = 0.0;
   }
 
   void CheckForce(double3* force) {
@@ -537,6 +546,10 @@ public:
 
   double DumpFdecompError() const {
     return std::sqrt(f_decomp_err);
+  }
+
+  double DumpStressAccumu() const {
+    return accum_stress;
   }
 
   const std::vector<std::vector<tensor3d> >& DumpCurLocStress(const int type) const {
