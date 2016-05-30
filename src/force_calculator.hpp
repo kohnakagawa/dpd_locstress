@@ -169,6 +169,8 @@ public:
     auto dr43 = dr42 + dr23;
 
     ApplyPBC(cross_point, param);
+
+    accum_stress += F1.norm2() * dr41.norm2() + F2.norm2() * dr42.norm2() + F3.norm2() * dr43.norm2();
     
     DistPairForceStress(cross_point, dr41, F1, param, ANGLE);
     DistPairForceStress(cross_point, dr42, F2, param, ANGLE);
