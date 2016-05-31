@@ -156,6 +156,40 @@ public:
     auto base_pos = r1 + 0.5 * dr13; ApplyPBC(base_pos, param);
     Decompose3N(r1, r2, r3, base_pos, F1, F2, F3, param);
   }
+
+  void Decompose3NMSP(const double3& r1, const double3& r2, const double3& r3,
+		      const double3& F1, const double3& F2, const double3& F3,
+		      const double3& dr12, const double3& dr23,
+		      const Parameter& param) {
+    const auto dr13 = dr12 + dr23;
+
+    const auto dr12_norm = dr12.norm2();
+    const auto dr23_norm = dr23.norm2();
+    const auto dr13_norm = dr13.norm2();
+    
+    const auto dr12_p_dr23_2 = (dr12_norm + dr23_norm) * (dr12_norm + dr23_norm);
+    const auto in_root = std::sqrt(dr12_p_dr23_2 - dr13_norm * dr13_norm);
+    
+    const auto cf_x = 1.0 + (dr23_norm - in_root) / dr12_norm;
+    const auto cf_y = 1.0 + (dr12_norm - in_root) / dr23_norm;
+    
+    const auto cent_to_r2 = dr12 / (1.0 + cf_y / cf_x - cf_y) - dr23 / (1.0 + cf_x / cf_y - cf_x);
+    auto center = r2 - cent_to_r2;
+    
+    ApplyPBC(center, param);
+    
+    Decompose3N(r1, r2, r3, center, F1, F2, F3, param);
+  }
+
+  void Decompose3NCMP(const double3& r1, const double3& r2, const double3& r3,
+		      const double3& F1, const double3& F2, const double3& F3,
+		      const double3& dr12, const double3& dr23,
+		      const Parameter& param) {
+    const auto dr13 = dr12 + dr23;
+    auto cm_pos = (3.0 * r1 + dr12 + dr13) / 3.0;
+    ApplyPBC(cm_pos, param);
+    Decompose3N(r1, r2, r3, cm_pos, F1, F2, F3, param);
+  }
   
   void Decompose3N(const double3& r1, const double3& r2, const double3& r3,
 		   const double3& F1, const double3& F2, const double3& F3,
@@ -308,7 +342,17 @@ public:
     Decompose3NCfd(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
 #elif defined RELAXED_BASE_POS
     Decompose3N(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
-#else // general case
+#elif defined MIN_STRESS_POS
+    Decompose3NMSP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], param);
+#elif defined CENTER_OF_MASS
+    Decompose3NCMP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], param);
+#elif defined MOL_STRESS_CENT
+    const auto base_grid = GetLSGrid1d(GetLSGrid(r[1], param), param);
+    const int tid = omp_get_thread_num();
+    for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) {
+	buf_lstress[ANGLE][tid][base_grid][i][j] += d_virial[i][j];
+      }
+#else
     const double3 bi_vec = Ftb_sum / Ftb_sum.norm2();
     double3 base_pos = r[1] + bi_vec * param.ls_lambda;
     ApplyPBC(base_pos, param);
