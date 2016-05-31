@@ -163,6 +163,12 @@ public:
 		      const Parameter& param) {
     const auto dr13 = dr12 + dr23;
 
+    const auto iprod_dr13dr12 = dr13 * dr12;
+    const auto iprod_dr13dr23 = dr13 * dr23;
+    
+    CHECK_EQUATION(iprod_dr13dr12 >= 0.0, iprod_dr13dr12);
+    CHECK_EQUATION(iprod_dr13dr23 >= 0.0, iprod_dr13dr23);
+
     const auto dr12_norm = dr12.norm2();
     const auto dr23_norm = dr23.norm2();
     const auto dr13_norm = dr13.norm2();
