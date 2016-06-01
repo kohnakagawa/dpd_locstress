@@ -159,7 +159,7 @@ public:
 
   void Decompose3NMSP(const double3& r1, const double3& r2, const double3& r3,
 		      const double3& F1, const double3& F2, const double3& F3,
-		      const double3& dr12, const double3& dr23,
+		      const double3& dr12, const double3& dr23, const double sign,
 		      const Parameter& param) {
     const auto dr13 = dr12 + dr23;
 
@@ -171,16 +171,17 @@ public:
 
     const auto dr12_norm = dr12.norm2();
     const auto dr23_norm = dr23.norm2();
-    const auto dr13_norm = dr13.norm2();
     
-    const auto dr12_p_dr23_2 = (dr12_norm + dr23_norm) * (dr12_norm + dr23_norm);
-    const auto in_root = std::sqrt(dr12_p_dr23_2 - dr13_norm * dr13_norm);
+    const auto dr21_hat = -dr12 / dr12_norm;
+    const auto dr23_hat = dr23 / dr23_norm;
+
+    auto dr24_hat = dr21_hat + dr23_hat;
+    dr24_hat /= dr24_hat.norm2();
     
-    const auto cf_x = 1.0 + (dr23_norm - in_root) / dr12_norm;
-    const auto cf_y = 1.0 + (dr12_norm - in_root) / dr23_norm;
-    
-    const auto cent_to_r2 = dr12 / (1.0 + cf_y / cf_x - cf_y) - dr23 / (1.0 + cf_x / cf_y - cf_x);
-    auto center = r2 - cent_to_r2;
+    const auto dr24_norm = std::sqrt(dr12_norm * dr23_norm);
+
+    const auto r2_to_cent = dr24_hat * dr24_norm * sign;
+    auto center = r2 + r2_to_cent;
     
     ApplyPBC(center, param);
     
@@ -348,8 +349,10 @@ public:
     Decompose3NCfd(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
 #elif defined RELAXED_BASE_POS
     Decompose3N(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
-#elif defined MIN_STRESS_POS
-    Decompose3NMSP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], param);
+#elif defined MIN_STRESS_POS_POSITIVE
+    Decompose3NMSP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], 1.0, param);
+#elif defined MIN_STRESS_POS_NEGATIVE
+    Decompose3NMSP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], -1.0, param);
 #elif defined CENTER_OF_MASS
     Decompose3NCMP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], param);
 #elif defined MOL_STRESS_CENT

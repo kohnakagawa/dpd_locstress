@@ -34,9 +34,10 @@
 #ifdef CALC_LOC_STRESS
 // #define RELAXED_BASE_POS
 // #define CENTRAL_FORCE
-// #define MIN_STRESS_POS
+#define MIN_STRESS_POS_POSITIVE
+// #define MIN_STRESS_POS_NEGATIVE
 // #define CENTER_OF_MASS
-#define MOL_STRESS_CENT
+// #define MOL_STRESS_CENT
 #endif
 
 enum par_prop {

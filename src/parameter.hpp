@@ -378,8 +378,11 @@ public:
 #ifdef CENTRAL_FORCE
     ost << "CENTRAL_FORCE is defined.\n";
 #endif
-#ifdef MIN_STRESS_POS
-    ost << "MIN_STRESS_POS is defined.\n";
+#ifdef MIN_STRESS_POS_POSITIVE
+    ost << "MIN_STRESS_POS_POSITIVE is defined.\n";
+#endif
+#ifdef MIN_STRESS_POS_NEGATIVE
+    ost << "MIN_STRESS_POS_NEGATIVE is defined.\n";
 #endif
 #ifdef CENTER_OF_MASS
     ost << "CENTER_OF_MASS is defined.\n";
