@@ -355,12 +355,18 @@ public:
     for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) {
 	buf_lstress[ANGLE][tid][base_grid][i][j] += dr[0][i] * Ftb0[j] + dr[1][i] * Ftb1[j];
       }
+#elif defined BISECT_VECTOR
+    double3 bisect = dr[1] * inv_dr[1] - dr[0] * inv_dr[0];
+    bisect /= bisect.norm2();
+    double3 base_pos = r[1] + bisect * param.ls_lambda;
+    ApplyPBC(base_pos, param);
+    Decompose3N(r[0], r[1], r[2], base_pos, -Ftb0, Ftb_sum, Ftb1, param);
 #else
     const double3 bi_vec = Ftb_sum / Ftb_sum.norm2();
     double3 base_pos = r[1] + bi_vec * param.ls_lambda;
     ApplyPBC(base_pos, param);
     Decompose3N(r[0], r[1], r[2], base_pos, -Ftb0, Ftb_sum, Ftb1, param);
-#endif // end of CENTRAL_FORCE
+#endif
 #endif // end of CALC_LOC_STRESS
   }
 

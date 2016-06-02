@@ -34,10 +34,11 @@
 #ifdef CALC_LOC_STRESS
 // #define RELAXED_BASE_POS
 // #define CENTRAL_FORCE
-#define MIN_STRESS_POS_POSITIVE
+// #define MIN_STRESS_POS_POSITIVE
 // #define MIN_STRESS_POS_NEGATIVE
 // #define CENTER_OF_MASS
 // #define MOL_STRESS_CENT
+#define BISECT_VECTOR
 #endif
 
 enum par_prop {
