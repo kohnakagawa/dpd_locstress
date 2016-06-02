@@ -9,12 +9,6 @@
 #include <algorithm>
 #include <iomanip>
 
-#ifdef __INTEL_COMPILER
-#define CALL_DGELSD call_mkl_dgelsd
-#else
-#define CALL_DGELSD call_f77_dgelsd
-#endif
-
 #define INLINE __attribute__((always_inline))
 
 class F_calculator {
@@ -254,7 +248,7 @@ public:
     D[nRows * 1 + 11] = -dr41.z; D[nRows * 3 + 11] = -dr42.z; D[nRows * 4 + 11] = -dr43.z;
     b[9] = 0.0;  b[10] = 0.0; b[11] = 0.0;
 
-    CALL_DGELSD<nRows, nCols, nRhs>(D, b);
+    call_dgelsd<nRows, nCols, nRhs>(D, b);
 
     const double3 dF21(b[0] * dr21.x, b[0] * dr21.y, b[0] * dr21.z);
     const double3 dF41(b[1] * dr41.x, b[1] * dr41.y, b[1] * dr41.z);
