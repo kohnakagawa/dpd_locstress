@@ -353,7 +353,7 @@ public:
     const auto base_grid = GetLSGrid1d(GetLSGrid(r[1], param), param);
     const int tid = omp_get_thread_num();
     for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) {
-	buf_lstress[ANGLE][tid][base_grid][i][j] += d_virial[i][j];
+	buf_lstress[ANGLE][tid][base_grid][i][j] += dr[0][i] * Ftb0[j] + dr[1][i] * Ftb1[j];
       }
 #else
     const double3 bi_vec = Ftb_sum / Ftb_sum.norm2();
