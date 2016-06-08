@@ -1,3 +1,4 @@
+#include "pov_renderer.hpp"
 #include "ls_tools.hpp"
 #include <iostream>
 #include <memory>
@@ -108,6 +109,8 @@ void analyze_at_minimum_stress_pos(const double3* pos,
   // std::cout << dF[0].norm2() * dr_new[0].norm2() << " " << dF[2].norm2() * dr_new[2].norm2() << std::endl;
 
   check_congruence_of_two_tri(pos, dr[0] * dr[0], dr[1] * dr[1], ms_pos);
+
+  std::cout << "stress sum check " << calc_stress_sum(dF, dr_new, 5) << std::endl;;
 
   std::cout << "end of analysis.\n";
 }
@@ -285,10 +288,36 @@ void show_force_central(const double3* pos,
   fout << calc_stress_sum(dF, dr_new, 5) << std::endl;
 }
 
+void set_default_settings(PovRenderer<double3>& renderer,
+			  const double3& cm_pos,
+			  const std::array<double3, 3>& pos,
+			  const double sphere_rad = 0.5) {
+  renderer.SetCamera(cm_pos + double3(0.0, 0.0, -24.0), cm_pos + double3(0.0, 0.0, 0.0));
+  renderer.SetLight(cm_pos + double3(0.0, 0.0, -10.0));
+  renderer.SetBackGround();
+  renderer.AppendDefaultIncludeFiles();
+  
+  // atoms
+  renderer.AppendObject(ObjectFactory<double3>::CreateSphere(pos[0], sphere_rad, PovColor::red<double3>()));
+  renderer.AppendObject(ObjectFactory<double3>::CreateSphere(pos[1], sphere_rad, PovColor::red<double3>()));
+  renderer.AppendObject(ObjectFactory<double3>::CreateSphere(pos[2], sphere_rad, PovColor::red<double3>()));
+    
+  // atom names
+  const double offset = 1.0;
+  const double scale  = 1.0;
+  renderer.AppendObject(ObjectFactory<double3>::CreateText("1", "crystal.ttf", 0.10,
+							   PovColor::black<double3>(), double3 {-1.3, -0.8, 0.0} * offset + pos[0], {scale, scale, scale}, {0.0, 0.0, 0.0}));
+  renderer.AppendObject(ObjectFactory<double3>::CreateText("2", "crystal.ttf", 0.10,
+							   PovColor::black<double3>(), double3 {0.8,  -1.0, 0.0} * offset + pos[1], {scale, scale, scale}, {0.0, 0.0, 0.0}));
+  renderer.AppendObject(ObjectFactory<double3>::CreateText("3", "crystal.ttf", 0.10,
+							   PovColor::black<double3>(), double3 {1.0,   1.0, 0.0} * offset + pos[2], {scale, scale, scale}, {0.0, 0.0, 0.0}));
+}
+
 void do_analysis(std::array<double3, 3>& pos,
 		 const Parameter& param,
 		 const std::string& cur_dir,
-		 const std::string mode) {
+		 const std::string mode,
+		 const bool output_pov = true) {
   const double3 dr[] {
     pos[1] - pos[0],
     pos[2] - pos[1],
@@ -350,6 +379,218 @@ void do_analysis(std::array<double3, 3>& pos,
     std::cerr << mode << ": Unknown mode.\n";
     std::exit(1);
   }
+
+  if (output_pov) {
+    std::cerr << "Create pov file.\n";
+    const double3 cm_pos = std::accumulate(pos.cbegin(), pos.cend(), double3(0.0)) / pos.size();
+
+    std::cout << "Choose output file type.\n";
+    std::cout << "forces with chemical bond (0) / decomposed forces at ESD point (1) / decomposed forces at RP point (2) / decomposed forces CFD case (3)\n";
+    int ls_mode = -1;
+    std::cin >> ls_mode;
+
+    if (0 == ls_mode) {
+      if (mode != modes[0]) {
+	std::cerr << "Please specify mspos execution mode.\n";
+	std::exit(1);
+      }
+      const std::string fname = cur_dir + "/force_with_chemical_bonds.pov";
+      PovRenderer<double3> renderer(fname.c_str());
+      
+      set_default_settings(renderer, cm_pos, pos);
+      
+      // chemical bonds
+      const double bond_rad = 0.1;
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(pos[0], dr[0], PovColor::white<double3>(), bond_rad));
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(pos[1], dr[1], PovColor::white<double3>(), bond_rad));
+      
+      // force vectors
+      const double f_scale = 0.20;
+      const double cyl_rad = 0.085;
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[0],
+								 sumF[0] * f_scale,
+								 cyl_rad, PovColor::black<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[1],
+								 sumF[1] * f_scale,
+								 cyl_rad, PovColor::black<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[2],
+								 sumF[2] * f_scale,
+								 cyl_rad, PovColor::black<double3>()));
+
+      renderer.WriteRenderScript();
+      
+    } else if (1 == ls_mode) {
+      // only show decomposed forces
+      // bending forces with chemical bonds
+      const std::string fname = cur_dir + "/decomposed_at_esd.pov";
+      PovRenderer<double3> renderer(fname.c_str());
+
+      const double sphere_rad = 0.5;
+      set_default_settings(renderer, cm_pos, pos, sphere_rad);
+
+      // phantom atom
+      renderer.AppendObject(ObjectFactory<double3>::CreateSphere(min_pos, sphere_rad, PovColor::green<double3>()));
+    
+      // phantom atom name
+      const double offset = 1.0;
+      renderer.AppendObject(ObjectFactory<double3>::CreateText("4", "crystal.ttf", 0.10,
+							       {0.0, 0.0, 0.0}, double3 {-1.0, 1.0, 0.0} * offset + min_pos, {1.0, 1.0, 1.0}, {0.0, 0.0, 0.0}));
+    
+      // force vectors
+      // atom 1
+      const double scale = 0.20;
+      const double cyl_rad = 0.085;
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[0],
+								 dF[0] * scale,
+								 cyl_rad, PovColor::black<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[0],
+								 dF[1] * scale,
+								 cyl_rad, PovColor::blue<double3>()));
+    
+      // atom 2
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[1],
+								 -dF[0] * scale,
+								 cyl_rad, PovColor::black<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[1],
+								 dF[2] * scale,
+								 cyl_rad, PovColor::magenta<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[1],
+								 dF[3] * scale,
+								 cyl_rad, PovColor::cyan<double3>()));
+    
+      // atom 3
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[2],
+								 -dF[2] * scale,
+								 cyl_rad, PovColor::magenta<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[2],
+								 dF[4] * scale,
+								 cyl_rad, PovColor::yellow<double3>()));
+    
+      // atom 4
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(min_pos,
+								 -dF[1] * scale,
+								 cyl_rad, PovColor::blue<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(min_pos,
+								 -dF[3] * scale,
+								 cyl_rad, PovColor::cyan<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(min_pos,
+								 -dF[4] * scale,
+								 cyl_rad, PovColor::yellow<double3>()));
+
+      // add phantom bonds
+      const double3 offset_vec(0.0, 0.0, 0.2);
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(pos[1] + offset_vec, dr_new[0], {1.0, 1.0, 1.0}, "M_Glass", 0.1));
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(min_pos + offset_vec, dr_new[1], {1.0, 1.0, 1.0}, "M_Glass", 0.1));
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(pos[2] + offset_vec, dr_new[2], {1.0, 1.0, 1.0}, "M_Glass", 0.1));
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(min_pos + offset_vec, dr_new[3], {1.0, 1.0, 1.0}, "M_Glass", 0.1));
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(min_pos + offset_vec, dr_new[4], {1.0, 1.0, 1.0}, "M_Glass", 0.1));
+      
+      renderer.WriteRenderScript();
+    } else if (2 == ls_mode) {
+      const std::string fname = cur_dir + "/decomposed_at_rp.pov";
+      PovRenderer<double3> renderer(fname.c_str());
+
+      const double sphere_rad = 0.5;
+      set_default_settings(renderer, cm_pos, pos, sphere_rad);
+      
+      // phantom atom
+      const auto relaxed_pos = get_relaxed_pos(pos[0], pos[1], sumF[0], sumF[1]);
+      renderer.AppendObject(ObjectFactory<double3>::CreateSphere(relaxed_pos, sphere_rad, PovColor::green<double3>()));
+      const double offset = 1.0;
+      renderer.AppendObject(ObjectFactory<double3>::CreateText("4", "crystal.ttf", 0.10,
+							       {0.0, 0.0, 0.0}, double3 {-1.0, 1.0, 0.0} * offset + relaxed_pos, {1.0, 1.0, 1.0}, {0.0, 0.0, 0.0}));
+      
+      // force vectors
+      const double f_scale = 0.20;
+      const double cyl_rad = 0.085;
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[0],
+								 sumF[0] * f_scale,
+								 cyl_rad, PovColor::blue<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(relaxed_pos,
+								 -sumF[0] * f_scale,
+								 cyl_rad, PovColor::blue<double3>()));
+      
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[1],
+								 sumF[1] * f_scale,
+								 cyl_rad, PovColor::cyan<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(relaxed_pos,
+								 -sumF[1] * f_scale,
+								 cyl_rad, PovColor::cyan<double3>()));
+
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[2],
+								 sumF[2] * f_scale,
+								 cyl_rad, PovColor::yellow<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(relaxed_pos,
+								 -sumF[2] * f_scale,
+								 cyl_rad, PovColor::yellow<double3>()));      
+
+      
+      dr_new[1] = pos[0] - relaxed_pos;
+      dr_new[3] = pos[1] - relaxed_pos;
+      dr_new[4] = pos[2] - relaxed_pos;
+      
+      // add ONLY phantom bonds
+      const double3 offset_vec(0.0, 0.0, 0.2);
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(relaxed_pos + offset_vec, dr_new[1], {1.0, 1.0, 1.0}, "M_Glass", 0.1));      
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(relaxed_pos + offset_vec, dr_new[3], {1.0, 1.0, 1.0}, "M_Glass", 0.1));
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(relaxed_pos + offset_vec, dr_new[4], {1.0, 1.0, 1.0}, "M_Glass", 0.1));
+      
+      renderer.WriteRenderScript();
+    } else if (3 == ls_mode) {
+      if (mode != modes[2]) {
+	std::cerr << "Please specify allof execution mode.\n";
+	std::exit(1);
+      }
+      const std::string fname = cur_dir + "/decomposed_at_cfd.pov";
+      PovRenderer<double3> renderer(fname.c_str());
+      
+      const double sphere_rad = 0.5;
+      set_default_settings(renderer, cm_pos, pos, sphere_rad);
+      
+      // force vectors
+      const double f_scale = 0.20;
+      const double cyl_rad = 0.085;
+      
+      // atom 1
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[0],
+								 dF[0] * f_scale,
+								 cyl_rad, PovColor::black<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[0],
+								 dF[1] * f_scale,
+								 cyl_rad, PovColor::blue<double3>()));
+      
+      // atom 2
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[1],
+								 -dF[0] * f_scale,
+								 cyl_rad, PovColor::black<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[1],
+								 dF[2] * f_scale,
+								 cyl_rad, PovColor::magenta<double3>()));
+      
+      // atom 3
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[2],
+								 -dF[2] * f_scale,
+								 cyl_rad, PovColor::magenta<double3>()));
+      renderer.AppendObject(ObjectFactory<double3>::CreateVector(pos[2],
+								 dF[4] * f_scale,
+								 cyl_rad, PovColor::blue<double3>()));
+
+      // add phantom bonds
+      const double3 offset_vec(0.0, 0.0, 0.2);
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(pos[0] + offset_vec, dr[0], {1.0, 1.0, 1.0}, "M_Glass", 0.1));
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(pos[1] + offset_vec, dr[1], {1.0, 1.0, 1.0}, "M_Glass", 0.1));
+      renderer.AppendObject(ObjectFactory<double3>::CreateCylinder(pos[2] + offset_vec, dr[2], {1.0, 1.0, 1.0}, "M_Glass", 0.1));
+      renderer.WriteRenderScript();
+    } else {
+      std::cerr << "Unknown mode\n";
+      std::exit(1);
+    }
+    
+#if 1
+    
+#else
+#endif
+  }
 }
 
 int main(int argc, char* argv[]) {
@@ -373,5 +614,5 @@ int main(int argc, char* argv[]) {
   const std::string mode = std::string(argv[2]);
   
   const std::string cur_dir = std::string(argv[1]);
-  do_analysis(pos, param, cur_dir, mode);
+  do_analysis(pos, param, cur_dir, mode, true);
 }

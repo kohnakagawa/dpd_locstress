@@ -1,6 +1,7 @@
 #include "../../src/parameter.hpp"
 #include <array>
 #include <iomanip>
+#include <lapacke.h>
 
 struct LSParam {
   std::array<double, 2> bleng = {{std::numeric_limits<double>::signaling_NaN(), std::numeric_limits<double>::signaling_NaN()}};
@@ -29,46 +30,25 @@ struct LSParam {
   }
 };
 
-// LAPACK routine
-extern "C" {
-  void dgelsd_(int* m, int* n, int* nrhs, double* a, int* lda,
-	       double* b, int* ldb, double* s, double* rcond, int* rank,
-	       double* work, int* lwork, int* iwork, int* info);
-}
-
-template<int nRows, int nCols, int nRHS>
+template<int nRows, int nCols, int nRHS, int layout = LAPACK_COL_MAJOR>
 void call_dgelsd(double* D,
 		 double* b,
 		 double rcond = 1.0e-12) {
-  std::array<double, nCols> s; s.fill(0.0);
+  constexpr int leading = (nRows > nCols) ? nRows : nCols;
 
-  // From https://software.intel.com/sites/products/documentation/doclib/mkl_sa/11/mkl_lapack_examples/dgelsd_ex.c.htm
-  int nrows = nRows, ncols = nCols, nrhs = nRHS, info = -1, lwork = -1, rank = -1;
-  int leading = (nrows > ncols) ? nrows : ncols;
+  std::array<double, nRows> s; s.fill(0.0);
+  int rank = -1;
   
-  const int smlsiz = 25;
-  const int nlvl = std::max(0, static_cast<int>(std::log2(std::min(nRows, nCols) / (smlsiz + 1))) + 1);
-  const int iwork_size = 3 * std::min(nRows, nCols) * nlvl + 11 * std::min(nRows, nCols);
-  int* iwork = new int [iwork_size];
-  double wkopt = 0.0;
+  const auto info = LAPACKE_dgelsd(layout,
+				   nRows, nCols, nRHS, &D[0], nRows,
+				   &b[0], leading, &s[0], rcond, &rank);
 
-  dgelsd_(&nrows, &ncols, &nrhs, &D[0], &nrows,
-	  &b[0], &leading, &s[0], &rcond, &rank,
-	  &wkopt, &lwork, iwork, &info);
-  lwork = static_cast<int>(wkopt);
-  
-  std::cout << "lwork " << lwork << std::endl;
-  double* work = new double [lwork];
-  dgelsd_(&nrows, &ncols, &nrhs, &(D[0]), &nrows,
-	  &b[0], &leading, &s[0], &rcond, &rank,
-	  work, &lwork, iwork, &info);
+  std::cout << "Effective rank " << rank << std::endl;
   if (info > 0) {
     std::cerr << "The algorithm computing SVD failed to converge\n";
     std::cerr << "The least squares solution could not be computed.\n";
     std::exit(1);
   }
-  delete [] iwork;
-  delete [] work;
 }
 
 double3 get_relaxed_pos(const double3& r1, const double3& r2,
@@ -104,55 +84,52 @@ void decompose_4n(const double3& r1,
   std::vector<double> D(nRows * nCols, 0.0);
   std::vector<double> b(nRows, 0.0);
   
-  std::fill(D.begin(), D.end(), 0.0);
-  std::fill(b.begin(), b.end(), 0.0);
-  
   // do not consider PBC
-  auto dr21 = r1 - r2;
-  auto dr31 = r1 - r3;
-  auto dr41 = r1 - r4;
+  auto dr12 = r2 - r1;
+  auto dr14 = r4 - r1;
+  auto dr15 = r5 - r1;
   auto dr23 = r3 - r2;
+  auto dr24 = r4 - r2;
+  auto dr25 = r5 - r2;
   auto dr34 = r4 - r3;
-  auto dr51 = r1 - r5;
-  auto dr52 = r2 - r5;
-  auto dr53 = r3 - r5;
-  auto dr54 = r4 - r5;
+  auto dr35 = r5 - r3;
+  auto dr45 = r5 - r4;
   
-  D[nRows * 0 + 0] = dr21.x; D[nRows * 0 + 3] = -dr21.x;
-  D[nRows * 0 + 1] = dr21.y; D[nRows * 0 + 4] = -dr21.y;
-  D[nRows * 0 + 2] = dr21.z; D[nRows * 0 + 5] = -dr21.y;
+  D[nRows * 0 + 0] = -dr12.x; D[nRows * 0 + 3] = dr12.x;
+  D[nRows * 0 + 1] = -dr12.y; D[nRows * 0 + 4] = dr12.y;
+  D[nRows * 0 + 2] = -dr12.z; D[nRows * 0 + 5] = dr12.y;
   
-  D[nRows * 1 + 0] = dr31.x; D[nRows * 1 + 6] = -dr31.x;
-  D[nRows * 1 + 1] = dr31.y; D[nRows * 1 + 7] = -dr31.y;
-  D[nRows * 1 + 2] = dr31.z; D[nRows * 1 + 8] = -dr31.z;
+  D[nRows * 1 + 0] = -dr14.x; D[nRows * 1 + 9] = dr14.x;
+  D[nRows * 1 + 1] = -dr14.y; D[nRows * 1 + 10] = dr14.y;
+  D[nRows * 1 + 2] = -dr14.z; D[nRows * 1 + 11] = dr14.z;
   
-  D[nRows * 2 + 0] = dr41.x; D[nRows * 2 + 9 ] = -dr41.x;
-  D[nRows * 2 + 1] = dr41.y; D[nRows * 2 + 10] = -dr41.y;
-  D[nRows * 2 + 2] = dr41.z; D[nRows * 2 + 11] = -dr41.z;
+  D[nRows * 2 + 0] = -dr15.x; D[nRows * 2 + 12] = dr15.x;
+  D[nRows * 2 + 1] = -dr15.y; D[nRows * 2 + 13] = dr15.y;
+  D[nRows * 2 + 2] = -dr15.z; D[nRows * 2 + 14] = dr15.z;
   
   D[nRows * 3 + 3] = -dr23.x; D[nRows * 3 + 6] = dr23.x;
   D[nRows * 3 + 4] = -dr23.y; D[nRows * 3 + 7] = dr23.y;
   D[nRows * 3 + 5] = -dr23.z; D[nRows * 3 + 8] = dr23.z;
   
-  D[nRows * 4 + 6] = -dr34.x; D[nRows * 4 + 9]  = dr34.x;
-  D[nRows * 4 + 7] = -dr34.y; D[nRows * 4 + 10] = dr34.y;
-  D[nRows * 4 + 8] = -dr34.z; D[nRows * 4 + 11] = dr34.z;
+  D[nRows * 4 + 3] = -dr24.x; D[nRows * 4 + 9]  = dr24.x;
+  D[nRows * 4 + 4] = -dr24.y; D[nRows * 4 + 10] = dr24.y;
+  D[nRows * 4 + 5] = -dr24.z; D[nRows * 4 + 11] = dr24.z;
   
-  D[nRows * 5 + 0] = dr51.x; D[nRows * 5 + 12] = -dr51.x;
-  D[nRows * 5 + 1] = dr51.y; D[nRows * 5 + 13] = -dr51.y;
-  D[nRows * 5 + 2] = dr51.z; D[nRows * 5 + 14] = -dr51.z;
+  D[nRows * 5 + 3] = -dr25.x; D[nRows * 5 + 12] = dr25.x;
+  D[nRows * 5 + 4] = -dr25.y; D[nRows * 5 + 13] = dr25.y;
+  D[nRows * 5 + 5] = -dr25.z; D[nRows * 5 + 14] = dr25.z;
 
-  D[nRows * 6 + 3] = dr52.x; D[nRows * 6 + 12] = -dr52.x;
-  D[nRows * 6 + 4] = dr52.y; D[nRows * 6 + 13] = -dr52.y;
-  D[nRows * 6 + 5] = dr53.z; D[nRows * 6 + 14] = -dr52.z;
+  D[nRows * 6 + 6] = -dr34.x; D[nRows * 6 + 9]  = dr34.x;
+  D[nRows * 6 + 7] = -dr34.y; D[nRows * 6 + 10] = dr34.y;
+  D[nRows * 6 + 8] = -dr34.z; D[nRows * 6 + 11] = dr34.z;
 
-  D[nRows * 7 + 6] = dr53.x; D[nRows * 7 + 12] = -dr53.x;
-  D[nRows * 7 + 7] = dr53.y; D[nRows * 7 + 13] = -dr53.y;
-  D[nRows * 7 + 8] = dr53.z; D[nRows * 7 + 14] = -dr53.z;
-
-  D[nRows * 8 + 9 ] = dr54.x; D[nRows * 8 + 12] = -dr54.x;
-  D[nRows * 8 + 10] = dr54.y; D[nRows * 8 + 13] = -dr54.y;
-  D[nRows * 8 + 11] = dr54.z; D[nRows * 8 + 14] = -dr54.z;
+  D[nRows * 7 + 6] = -dr35.x; D[nRows * 7 + 12] = dr35.x;
+  D[nRows * 7 + 7] = -dr35.y; D[nRows * 7 + 13] = dr35.y;
+  D[nRows * 7 + 8] = -dr35.z; D[nRows * 7 + 14] = dr35.z;
+  
+  D[nRows * 8 + 9 ] = -dr45.x; D[nRows * 8 + 12] = dr45.x;
+  D[nRows * 8 + 10] = -dr45.y; D[nRows * 8 + 13] = dr45.y;
+  D[nRows * 8 + 11] = -dr45.z; D[nRows * 8 + 14] = dr45.z;
   
   b[0] = F1.x; b[1] = F1.y; b[2] = F1.z;
   b[3] = F2.x; b[4] = F2.y; b[5] = F2.z;
@@ -160,49 +137,68 @@ void decompose_4n(const double3& r1,
   b[9] = F4.x; b[10] = F4.y; b[11] = F4.z;
   b[12] = 0.0; b[13] = 0.0; b[14] = 0.0;
 
+  //
+  std::ofstream fout0("matD.txt");
+  std::ofstream fout1("vecb.txt");
+
+  for (int j = 0; j < nRows; j++) {
+    for (int i = 0; i < nCols - 1; i++) {
+      fout0 << D.at(nRows * i + j) << " ";
+    }
+    fout0 << D.at(nRows * (nCols - 1) + j) << std::endl;
+  }
+
+  for (int i = 0; i < nRows; i++)
+    fout1 << b.at(i) << std::endl;
+  //
+
+  const auto b_org = b;
+  
   call_dgelsd<nRows, nCols, nRhs>(&D[0], &b[0]);
 
-  const double3 dF21 = dr21 * b[0];
-  const double3 dF31 = dr31 * b[1];
-  const double3 dF41 = dr41 * b[2];
+  const double3 dF12 = dr12 * b[0];
+  const double3 dF14 = dr14 * b[1];
+  const double3 dF15 = dr15 * b[2];
   const double3 dF23 = dr23 * b[3];
-  const double3 dF34 = dr34 * b[4];
-  const double3 dF51 = dr51 * b[5];
-  const double3 dF52 = dr52 * b[6];
-  const double3 dF53 = dr53 * b[7];
-  const double3 dF54 = dr54 * b[8];
+  const double3 dF24 = dr24 * b[4];
+  const double3 dF25 = dr25 * b[5];
+  const double3 dF34 = dr34 * b[6];
+  const double3 dF35 = dr35 * b[7];
+  const double3 dF45 = dr45 * b[8];
 
   // check err
-  const auto F1_d = dF21 + dF31 + dF41 + dF51;
-  const auto F2_d = dF52 - dF21 - dF23;
-  const auto F3_d = dF23 + dF53 - dF31 - dF34;
-  const auto F4_d = dF34 + dF54 - dF41;
+  const auto F1_d = -(dF12 + dF14 + dF15);
+  const auto F2_d = dF12 - dF23 - dF24 - dF25;
+  const auto F3_d = dF23 - dF34 - dF35;
+  const auto F4_d = dF14 + dF24 + dF34 - dF45;
+  const auto F5_d = dF15 + dF25 + dF35 + dF45;
   
   f_decomp_err += (F1_d - F1) * (F1_d - F1);
   f_decomp_err += (F2_d - F2) * (F2_d - F2);
   f_decomp_err += (F3_d - F3) * (F3_d - F3);
   f_decomp_err += (F4_d - F4) * (F4_d - F4);
+  f_decomp_err += F5_d * F5_d;
   
-  dF[0] = dF21;
-  dF[1] = dF41;
-  dF[2] = dF41;
+  dF[0] = dF12;
+  dF[1] = dF14;
+  dF[2] = dF15;
   dF[3] = dF23;
-  dF[4] = dF34;
-  dF[5] = dF51;
-  dF[6] = dF52;
-  dF[7] = dF53;
-  dF[8] = dF54;
+  dF[4] = dF24;
+  dF[5] = dF25;
+  dF[6] = dF34;
+  dF[7] = dF35;
+  dF[8] = dF45;
 
   stress = 
-    dF21.norm2() * dr21.norm2() +
-    dF31.norm2() * dr31.norm2() +
-    dF41.norm2() * dr41.norm2() +
+    dF12.norm2() * dr12.norm2() +
+    dF14.norm2() * dr14.norm2() +
+    dF15.norm2() * dr15.norm2() +
     dF23.norm2() * dr23.norm2() +
     dF34.norm2() * dr34.norm2() +
-    dF51.norm2() * dr51.norm2() +
-    dF52.norm2() * dr52.norm2() +
-    dF53.norm2() * dr53.norm2() +
-    dF54.norm2() * dr54.norm2();
+    dF25.norm2() * dr25.norm2() +
+    dF34.norm2() * dr34.norm2() +
+    dF35.norm2() * dr35.norm2() +
+    dF45.norm2() * dr45.norm2();
 }
 
 // from src/force_calculator.hpp

@@ -30,7 +30,7 @@ void gen_init_config(std::array<double3, 3>& pos,
   std::cout << "random coef\n";
   std::array<double, 3> cf;
   cf[0] = uni_dist_plus(mt);
-  cf[1] = uni_dist_minus(mt);
+  cf[1] = uni_dist_plus(mt);
   cf[2] = uni_dist_plus(mt);
 
   std::cout << "force coef\n";

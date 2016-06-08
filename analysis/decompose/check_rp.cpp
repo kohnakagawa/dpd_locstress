@@ -123,9 +123,19 @@ void dist_pair_force_stress(const double3& rj,
   }
 }
 
+double calc_stress_inhomo(const std::vector<double>& buf_ls) {
+  double stress_pos = 0.0, stress_neg = 0.0;
+  for (const auto ls : buf_ls) {
+    if (ls > 0.0) stress_pos += ls;
+    if (ls < 0.0) stress_neg += std::abs(ls);
+  }
+  return stress_pos / stress_neg;
+}
+
 int main(int argc, char* argv[]) {
-  if (argc != 2) {
+  if (argc != 3) {
     std::cerr << "argv[1] == target directory name.\n";
+    std::cerr << "argv[2] == ls_lambda.\n";
     std::exit(1);
   }
 
@@ -174,10 +184,14 @@ int main(int argc, char* argv[]) {
   dr_new[0] = pos[0] - pos[1];
   dr_new[2] = pos[1] - pos[2];
 
-  // const double lambda = 100.0;
-  // double3 base_pos = pos[1];
-  // base_pos.y += lambda;
-  double3 base_pos = (pos[0] + pos[2]) * 0.5;
+  const auto dr21_hat = -dr[0] * inv_dr[0];
+  const auto dr23_hat = dr[1] * inv_dr[1];
+
+  const double lambda = std::atof(argv[2]);
+  auto base_pos = pos[1] + (dr21_hat + dr23_hat) * lambda;
+
+  // CFD case
+  // double3 base_pos = (pos[0] + pos[2]) * 0.5;
   
   double f_decomp_err = 0.0, virial = 0.0;
   calc_cosine_bend(&pos[0], &dr[0], &inv_dr[0], base_pos, dF, &force[0], f_decomp_err, virial, param);
@@ -210,10 +224,16 @@ int main(int argc, char* argv[]) {
 
   std::cout << "total virial " << virial << std::endl;
   std::cout << "total virial buf_ls " << std::accumulate(buf_ls.cbegin(), buf_ls.cend(), 0.0) << std::endl;
-  std::cout << "total virial buf_ls_rp " << std::accumulate(buf_ls_rp.cbegin(), buf_ls_rp.cend(), 0.0) << std::endl;
+  std::cout << "total virial buf_ls_rp " << std::accumulate(buf_ls_rp.cbegin(), buf_ls_rp.cend(), 0.0) << std::endl << std::endl;
   
+  std::cout << "position buf_ls buf_ls_rp\n";
   for (size_t i = 0; i < buf_ls.size(); i++) {
     if ((buf_ls[i] != 0.0) || (buf_ls_rp[i] != 0.0))
       std::cout << (i + 0.5) * grid_len << " " << buf_ls[i] << " " << buf_ls_rp[i] << std::endl;
   }
+  std::cout << std::endl;
+  
+  std::cout << calc_stress_inhomo(buf_ls) << " " << calc_stress_inhomo(buf_ls_rp) << std::endl;
+
+  // const auto r2_to_cm_pos = std::accumulate(pos.cbegin(), pos.cend(), double3(0.0)) / pos.size() - pos[1];
 }

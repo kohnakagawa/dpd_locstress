@@ -9,7 +9,7 @@ namespace {
 // From lammps/src/dihedral_charmm.cpp
 void calc_dihedral(const std::array<double3, 4>& pos,
 		   std::array<double3, 4>& force,
-		   std::array<double3, 4>& dF,
+		   std::array<double3, 9>& dF,
 		   const double3& base_pos,
 		   double& stress) {
   // 1st bond
@@ -81,11 +81,16 @@ void calc_dihedral(const std::array<double3, 4>& pos,
   const double3 f4(df * dthx, df * dthy, df * dthz);
   const double3 f3(-sx2 - f4[0], -sy2 - f4[1], -sz2 - f4[2]);
 
-  // double f_decomp_err = 0.0;
-  // decompose_4n(pos[0], pos[1], pos[2], pos[3], base_pos, f1, f2, f3, f4, f_decomp_err, stress, &dF[0]);
+  std::cout << "linear momentum.\n";
+  std::cout << f1 + f2 + f3 + f4 << std::endl;
+  std::cout << "angular momentum.\n";
+  std::cout << (f1 ^ pos[0]) + (f2 ^ pos[1]) + (f3 ^ pos[2]) + (f4 ^ pos[3]) << std::endl;
 
-  // std::cout << "decompose error\n";
-  // std::cout << f_decomp_err << std::endl;
+  double f_decomp_err = 0.0;
+  decompose_4n(pos[0], pos[1], pos[3], pos[2], base_pos, f1, f2, f4, f3, f_decomp_err, stress, &dF[0]);
+
+  std::cout << "decompose error\n";
+  std::cout << f_decomp_err << std::endl;
   
   // apply force to each of 4 atoms
   force[0] += f1;
@@ -120,6 +125,10 @@ void gen_init_config(std::array<double3, 4>& pos,
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 3; j++)
       assert(pos[i][j] >= 0.0);
+
+  std::cout << "particle configuration.\n";
+  for (int i = 0; i < 4; i++)
+    std::cout << pos[i] << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -130,19 +139,16 @@ int main(int argc, char* argv[]) {
   }
   const double phi = std::atof(argv[2]);
 
-  std::string cur_dir(argv[1]);
-  std::array<double3, 4> pos, force, dF;
+  std::array<double3, 4> pos, force;
+  std::array<double3, 9> dF;
   std::array<double, 3> b_len{1.0, 1.0, 1.0};
   const double angle = M_PI * 30.0 / 180.0;
   
   double stress = 0.0;
-  const double3 base_pos = std::accumulate(pos.cbegin(),
-					   pos.cend(),
-					   double3(0.0, 0.0, 0.0),
-					   [](const double3& sum, const double3& elem) -> double3 {
-					     return sum + elem;
-					   }) / pos.size();
   gen_init_config(pos, b_len, angle, phi);
+  // const double3 base_pos = (pos[0] + pos[2]) * 0.5;
+  const double3 base_pos = std::accumulate(pos.cbegin(), pos.cend(), double3(0.0)) / pos.size();
   force.fill(double3(0.0));
+  dF.fill(double3(0.0));
   calc_dihedral(pos, force, dF, base_pos, stress);
 }
