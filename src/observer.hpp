@@ -39,7 +39,7 @@ class Observer {
   int cnt_ls = 0;
   
   //ASSUME: membrane is square shape.
-  double cut_r = 0.2, i_cut_r = -1.0;
+  double cut_r = 2.0, i_cut_r = -1.0;
   int cut_grid = -1;
   std::vector<double> hei; std::vector<int> hei_elem;
   

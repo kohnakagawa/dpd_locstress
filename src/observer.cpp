@@ -8,10 +8,10 @@
 #include <numeric>
 
 Observer::Observer(const Parameter& param) {
-  loc_tempera.resize(param.grid_numb[1], 0.0);
+  loc_tempera.resize(param.ls_grid_num_[1], 0.0);
   for (size_t t = 0; t < loc_dense.size(); t++)
-    loc_dense[t].resize(param.grid_numb[1], 0.0);
-  loc_vel.resize(param.grid_numb[1], double3(0.0));
+    loc_dense[t].resize(param.ls_grid_num_[1], 0.0);
+  loc_vel.resize(param.ls_grid_num_[1], double3(0.0));
   tail_cm_pos.resize((param.tailN > param.headN) ? param.tailN : param.headN, double3(0.0));
   const int all_ls_grid = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
   for (size_t i = 0; i < loc_stress_sum.size(); i++) {
@@ -337,8 +337,8 @@ void Observer::DumpLocalVal(const dpdsystem &sDPD, const Parameter& param) {
     const auto pos = sDPD.pr[i];
     const auto vel = sDPD.pv[i];
     const auto prp = sDPD.prop[i];
-    int hash = static_cast<int>(pos.y * param.i_grid_leng.y);
-    if (hash == param.grid_numb[1]) hash--;
+    int hash = static_cast<int>(pos.y * param.i_ls_grid_.y);
+    if (hash == param.ls_grid_num_[1]) hash--;
     loc_tempera[hash]        += vel * vel;
     loc_dense[prp][hash]     += 1.0;
     loc_dense[Numprop][hash] += 1.0;
@@ -351,13 +351,13 @@ void Observer::DumpLocalVal(const dpdsystem &sDPD, const Parameter& param) {
     loc_tempera[i] /= loc_dense[Numprop][i] * 3.0;
   }
 
-  const double r_loc_vol = 1.0 / (param.grid_leng.y * param.L.x * param.L.z);
+  const double r_loc_vol = 1.0 / (param.ls_grid_.y * param.L.x * param.L.z);
   for (size_t t = 0; t < loc_dense.size(); t++)
     for (size_t i = 0; i < num_loc_grid; i++)
       loc_dense[t][i] *= r_loc_vol;
   
   for (size_t i = 0; i < loc_tempera.size(); i++) {
-    const double cur_y = (i + 0.5) * param.grid_leng.y;
+    const double cur_y = (i + 0.5) * param.ls_grid_.y;
     fprintf(fp[LOCAL_VAL], "%f %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g\n",
 	    cur_y,
 	    loc_tempera[i],
