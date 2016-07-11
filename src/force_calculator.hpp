@@ -155,16 +155,13 @@ public:
 		      const double3& F1, const double3& F2, const double3& F3,
 		      const double3& dr12, const double3& dr23, const double sign,
 		      const Parameter& param) {
-    const auto dr13 = dr12 + dr23;
-
-    const auto iprod_dr13dr12 = dr13 * dr12;
-    const auto iprod_dr13dr23 = dr13 * dr23;
-    
-    CHECK_EQUATION(iprod_dr13dr12 >= 0.0, iprod_dr13dr12);
-    CHECK_EQUATION(iprod_dr13dr23 >= 0.0, iprod_dr13dr23);
-
     const auto dr12_norm = dr12.norm2();
     const auto dr23_norm = dr23.norm2();
+
+    const auto cos123 = -dr12 * dr23 / (dr12_norm * dr23_norm);
+
+    CHECK_EQUATION(dr12_norm >= dr23_norm * (1.0 + cos123) * 0.5, dr12_norm);
+    CHECK_EQUATION(dr23_norm >= dr12_norm * (1.0 + cos123) * 0.5, dr23_norm);
     
     const auto dr21_hat = -dr12 / dr12_norm;
     const auto dr23_hat = dr23 / dr23_norm;
