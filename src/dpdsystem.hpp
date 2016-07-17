@@ -92,6 +92,7 @@ public:
   int      GetPrtclIdx   (int i) const {   return celllist.prtcl_idx[i];    }
   int      GetLipidElemIdx(int i) const {  return cheminfo.lip_elem_idx[i];}
   bool     GetLipidChemConf(int i) const { return cheminfo.lipid_chem[i]; }
+  int      GetLipidUnit(int i) const {return cheminfo.lipid_unit[i];}
   int      GetPartIdx(int i) const { return cheminfo.part_idx[i]; }
 
   void     SetMoment  (int i, const double3& v ){ pv[i]	  = v; pv_bef[i] = v;}

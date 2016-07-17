@@ -9,16 +9,17 @@
 
 Observer::Observer(const Parameter& param) {
   loc_tempera.resize(param.ls_grid_num_[1], 0.0);
-  for (size_t t = 0; t < loc_dense.size(); t++)
+  for (auto t = 0u; t < loc_dense.size(); t++)
     loc_dense[t].resize(param.ls_grid_num_[1], 0.0);
+  for (auto tu = 0u; tu < loc_dense_tail.size(); tu++)
+    loc_dense_tail[tu].resize(param.ls_grid_num_[1], 0.0);
   loc_vel.resize(param.ls_grid_num_[1], double3(0.0));
   tail_cm_pos.resize((param.tailN > param.headN) ? param.tailN : param.headN, double3(0.0));
   const int all_ls_grid = param.ls_grid_num_[0] * param.ls_grid_num_[1] * param.ls_grid_num_[2];
-  for (size_t i = 0; i < loc_stress_sum.size(); i++) {
+  for (auto i = 0u; i < loc_stress_sum.size(); i++)
     loc_stress_sum[i].resize(all_ls_grid);
-  }
 
-  for (size_t t = 0; t < loc_stress_sum.size(); t++)
+  for (auto t = 0u; t < loc_stress_sum.size(); t++)
     for (int i = 0; i < all_ls_grid; i++)
       for (int j = 0; j < 3; j++)
 	for (int k = 0; k < 3; k++)
@@ -331,17 +332,21 @@ void Observer::DumpLocalVal(const dpdsystem &sDPD, const Parameter& param) {
   std::fill(loc_tempera.begin(), loc_tempera.end(), 0.0);
   for (size_t t = 0; t < loc_dense.size(); t++)
     std::fill(loc_dense[t].begin(), loc_dense[t].end(), 0.0);
+  for (auto tu = 0u; tu < loc_dense_tail.size(); tu++)
+    std::fill(loc_dense_tail[tu].begin(), loc_dense_tail[tu].end(), 0.0);
   std::fill(loc_vel.begin(), loc_vel.end(), double3(0.0, 0.0, 0.0));
 
   for (int i = 0; i < Parameter::sys_size; i++) {
     const auto pos = sDPD.pr[i];
     const auto vel = sDPD.pv[i];
     const auto prp = sDPD.prop[i];
+    const auto unit = sDPD.GetLipidUnit(i);
     int hash = static_cast<int>(pos.y * param.i_ls_grid_.y);
     if (hash == param.ls_grid_num_[1]) hash--;
     loc_tempera[hash]        += vel * vel;
     loc_dense[prp][hash]     += 1.0;
     loc_dense[Numprop][hash] += 1.0;
+    if (unit != -1) loc_dense_tail[unit][hash] += 1.0;
     loc_vel[hash]            += vel;
   }
 
@@ -355,13 +360,17 @@ void Observer::DumpLocalVal(const dpdsystem &sDPD, const Parameter& param) {
   for (size_t t = 0; t < loc_dense.size(); t++)
     for (size_t i = 0; i < num_loc_grid; i++)
       loc_dense[t][i] *= r_loc_vol;
+  for (auto tu = 0u; tu < loc_dense_tail.size(); tu++)
+    for (auto i = 0u; i < num_loc_grid; i++)
+      loc_dense_tail[tu][i] *= r_loc_vol;
   
   for (size_t i = 0; i < loc_tempera.size(); i++) {
     const double cur_y = (i + 0.5) * param.ls_grid_.y;
-    fprintf(fp[LOCAL_VAL], "%f %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g\n",
+    fprintf(fp[LOCAL_VAL], "%f %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g %.15g\n",
 	    cur_y,
 	    loc_tempera[i],
 	    loc_dense[Water][i], loc_dense[Hyphil][i], loc_dense[Hyphob][i], loc_dense[Numprop][i],
+	    loc_dense_tail[0][i], loc_dense_tail[1][i], loc_dense_tail[2][i], loc_dense_tail[3][i],
 	    loc_vel[i].x, loc_vel[i].y, loc_vel[i].z);
   }
 }

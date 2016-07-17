@@ -33,6 +33,7 @@ class Observer {
 
   std::vector<double> loc_tempera;
   std::array<std::vector<double>, Numprop + 1> loc_dense;
+  std::array<std::vector<double>, Parameter::ALL_UNIT_N> loc_dense_tail;
   std::vector<double3> loc_vel, tail_cm_pos;
   std::array<std::vector<tensor3d>, NUM_LS_TYPE + 1> loc_stress_sum;
 
