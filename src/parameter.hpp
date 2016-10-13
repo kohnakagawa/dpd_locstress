@@ -10,21 +10,45 @@
 #include "defs.hpp"
 
 class Parameter {
+  fdm GetFdm(const std::string fdm_name) {
+    if (fdm_name == "cfd" || fdm_name == "CFD") {
+      return CFD;
+    } else if (fdm_name == "fcd" || fdm_name == "FCD") {
+      return FCD;
+    } else if (fdm_name == "hd_lm" || fdm_name == "HD_LM") {
+      return MSP_LM;
+    } else if (fdm_name == "hd_gm" || fdm_name == "HD_GM") {
+      return MSP_GM;
+    } else if (fdm_name == "hd_bisect" || fdm_name == "HD_BISECT") {
+      return BISECT;
+    } else {
+      std::cerr << "mode_name: " << fdm_name << "\n";
+      std::cerr << "unknown mode is specified. We ignore it.\n";
+      std::cerr << "We will use Central Force Decomposition.\n";
+      return CFD;
+    }
+  }
+
   void LoadMacroParam() {
     const std::string fname = cur_dir + "/macro_IF.txt";
     std::ifstream fin(fname.c_str());
     CHECK_FILE_OPEN(fin);
 
+    std::string fdm_name;
     fin >> tempera >> sys_size >> headN >> tailN >> dt >> grid_leng.x >> L.x >> L.y >> L.z
-	>> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof
-	>> ls_grid_.x >> ls_grid_.y >> ls_grid_.z >> ls_lambda
-	>> all_time_ >> time_step_mic_ >> time_step_mac_ >> time_step_vt_ >> chem_beg_;
+        >> coef_prob[0] >> coef_prob[1] >> coef_prob[2] >> prob_cutof
+        >> ls_grid_.x >> ls_grid_.y >> ls_grid_.z >> ls_lambda
+        >> fdm_name
+        >> all_time_ >> time_step_mic_ >> time_step_mac_ >> time_step_vt_ >> chem_beg_;
 
+    // check data is correctly loaded.
     CHECK_FILESTREAM_IS_OK(fin);
     CHECK_FILE_IS_EOF(fin);
-    
+
+    decomp_type_ = GetFdm(fdm_name);
+
     grid_leng.z = grid_leng.y = grid_leng.x;
-    
+
     ampN = (headN < tailN) ? headN : tailN;
 
     if (HYPHIL_N > REAC_PART) {
@@ -43,40 +67,40 @@ class Parameter {
 
     dt_c      = dt * static_cast<double>(COL_FREQ);
     inv_dt_sq = 1.0 / std::sqrt(dt);
-    
+
     for (int i = 0; i < 3; i++) {
       grid_numb[i]    = static_cast<int>(L[i] / grid_leng[i]);
       ls_grid_num_[i] = static_cast<int>(L[i] / ls_grid_[i]);
     }
-      
+
     for (int i = 0; i < 3; i++) {
       grid_leng[i] = L[i] / grid_numb[i];
       ls_grid_[i]  = L[i] / ls_grid_num_[i];
     }
     all_grid = grid_numb[0] * grid_numb[1] * grid_numb[2];
-    
+
     i_grid_leng = 1.0 / grid_leng;
     i_ls_grid_  = 1.0 / ls_grid_;
   }
-  
+
   void CalculateGammaWithHarmonicMean(const int i, const int j) {
     if (intrparams.cf_sigma[i][j] < 0.0) {
       intrparams.cf_gamma[i][j] = intrparams.cf_gamma[j][i] = 2.0 / ( (1.0 / intrparams.cf_gamma[i][i]) + (1.0 / intrparams.cf_gamma[j][j]) );
       intrparams.cf_sigma[i][j] = intrparams.cf_sigma[j][i] = std::sqrt(2.0 * intrparams.cf_gamma[i][j] * tempera);
     }
   }
-  
+
   void LoadMicroParam() {
     std::string fname = cur_dir + "/micro_IF.txt";
     std::ifstream fin(fname.c_str());
     CHECK_FILE_OPEN(fin);
 
-    fin >> intrparams.cf_sigma[0][0] >> intrparams.cf_sigma[0][1] >> intrparams.cf_sigma[0][2] 
-	>> intrparams.cf_sigma[1][1] >> intrparams.cf_sigma[1][2] >> intrparams.cf_sigma[2][2] 
-	>> intrparams.cf_spring      >> intrparams.cf_bend
-	>> intrparams.cf_repul[0][0] >> intrparams.cf_repul[0][1] >> intrparams.cf_repul[0][2]
-	>> intrparams.cf_repul[1][1] >> intrparams.cf_repul[1][2] >> intrparams.cf_repul[2][2];
-    
+    fin >> intrparams.cf_sigma[0][0] >> intrparams.cf_sigma[0][1] >> intrparams.cf_sigma[0][2]
+        >> intrparams.cf_sigma[1][1] >> intrparams.cf_sigma[1][2] >> intrparams.cf_sigma[2][2]
+        >> intrparams.cf_spring      >> intrparams.cf_bend
+        >> intrparams.cf_repul[0][0] >> intrparams.cf_repul[0][1] >> intrparams.cf_repul[0][2]
+        >> intrparams.cf_repul[1][1] >> intrparams.cf_repul[1][2] >> intrparams.cf_repul[2][2];
+
     CHECK_FILESTREAM_IS_OK(fin);
     CHECK_FILE_OPEN(fin);
 
@@ -105,7 +129,7 @@ class Parameter {
     CalculateGammaWithHarmonicMean(0, 2);
     CalculateGammaWithHarmonicMean(1, 2);
   }
-  
+
   void LoadBindParam() {
     std::string fname = cur_dir + "/bind_info.txt";
     std::ifstream fin(fname.c_str());
@@ -117,7 +141,7 @@ class Parameter {
 
   void CheckMacroParam() const {
     CHECK_EQUATION(sys_size > 0, sys_size);
-    
+
     CHECK_EQUATION(all_time_ > 0, all_time_);
     CHECK_EQUATION(time_step_mic_ > 0, time_step_mic_);
     CHECK_EQUATION(time_step_mac_ > 0, time_step_mac_);
@@ -131,13 +155,13 @@ class Parameter {
 
     CHECK_EQUATION(tailN > 0, tailN);
     CHECK_EQUATION(headN > 0, headN);
-    
+
     CHECK_EQUATION(std::isfinite(dt), dt);
     CHECK_EQUATION(std::isfinite(tempera), tempera);
     CHECK_EQUATION(std::isfinite(inv_dt_sq), inv_dt_sq);
     CHECK_EQUATION(std::isfinite(dt_c), dt_c);
     CHECK_EQUATION(std::isfinite(ls_lambda), ls_lambda);
-    
+
     CHECK_EQUATION(L > double3(0.0), L);
     CHECK_EQUATION(iL > double3(0.0), iL);
     CHECK_EQUATION(hL > double3(0.0), hL);
@@ -155,7 +179,7 @@ class Parameter {
     CHECK_EQUATION(grid_numb[1] > 0, grid_numb[1]);
     CHECK_EQUATION(grid_numb[2] > 0, grid_numb[2]);
     CHECK_EQUATION(all_grid > 0, all_grid);
-    
+
     CHECK_EQUATION(ls_grid_[0] > 0.0, ls_grid_[0]);
     CHECK_EQUATION(ls_grid_[1] > 0.0, ls_grid_[1]);
     CHECK_EQUATION(ls_grid_[2] > 0.0, ls_grid_[2]);
@@ -163,7 +187,7 @@ class Parameter {
     CHECK_EQUATION(i_ls_grid_[0] > 0.0, i_ls_grid_[0]);
     CHECK_EQUATION(i_ls_grid_[1] > 0.0, i_ls_grid_[1]);
     CHECK_EQUATION(i_ls_grid_[2] > 0.0, i_ls_grid_[2]);
-    
+
     CHECK_EQUATION(coef_prob[0] > 0.0, coef_prob[0]);
     CHECK_EQUATION(coef_prob[1] > 0.0, coef_prob[1]);
     CHECK_EQUATION(coef_prob[1] < 1.0, coef_prob[1]);
@@ -173,16 +197,16 @@ class Parameter {
 
   void CheckMicroParam() const {
     for(int i = 0; i < 3; i++) for(int j = 0; j < 3; j++) {
-	CHECK_EQUATION(intrparams.cf_sigma[i][j] >= 0.0, intrparams.cf_sigma[i][j]);
-	CHECK_EQUATION(std::isfinite(intrparams.cf_sigma[i][j]), intrparams.cf_sigma[i][j]);
-	CHECK_EQUATION(intrparams.cf_gamma[i][j] >= 0.0, intrparams.cf_gamma[i][j]);
-	CHECK_EQUATION(std::isfinite(intrparams.cf_gamma[i][j]), intrparams.cf_gamma[i][j]);
-	CHECK_EQUATION(intrparams.cf_repul[i][j] >= 0.0, intrparams.cf_repul[i][j]);
-	CHECK_EQUATION(std::isfinite(intrparams.cf_repul[i][j]), intrparams.cf_repul[i][j]);
-	
-	CHECK_EQUATION(intrparams.cf_sigma[i][j] == intrparams.cf_sigma[j][i], intrparams.cf_sigma[i][j]);
-	CHECK_EQUATION(intrparams.cf_gamma[i][j] == intrparams.cf_gamma[j][i], intrparams.cf_gamma[i][j]);
-	CHECK_EQUATION(intrparams.cf_repul[i][j] == intrparams.cf_repul[j][i], intrparams.cf_repul[i][j]);
+        CHECK_EQUATION(intrparams.cf_sigma[i][j] >= 0.0, intrparams.cf_sigma[i][j]);
+        CHECK_EQUATION(std::isfinite(intrparams.cf_sigma[i][j]), intrparams.cf_sigma[i][j]);
+        CHECK_EQUATION(intrparams.cf_gamma[i][j] >= 0.0, intrparams.cf_gamma[i][j]);
+        CHECK_EQUATION(std::isfinite(intrparams.cf_gamma[i][j]), intrparams.cf_gamma[i][j]);
+        CHECK_EQUATION(intrparams.cf_repul[i][j] >= 0.0, intrparams.cf_repul[i][j]);
+        CHECK_EQUATION(std::isfinite(intrparams.cf_repul[i][j]), intrparams.cf_repul[i][j]);
+
+        CHECK_EQUATION(intrparams.cf_sigma[i][j] == intrparams.cf_sigma[j][i], intrparams.cf_sigma[i][j]);
+        CHECK_EQUATION(intrparams.cf_gamma[i][j] == intrparams.cf_gamma[j][i], intrparams.cf_gamma[i][j]);
+        CHECK_EQUATION(intrparams.cf_repul[i][j] == intrparams.cf_repul[j][i], intrparams.cf_repul[i][j]);
       }
     CHECK_EQUATION(intrparams.cf_bend >= 0.0, intrparams.cf_bend);
     CHECK_EQUATION(std::isfinite(intrparams.cf_bend), intrparams.cf_bend);
@@ -212,7 +236,8 @@ public:
     BUF_SIZE = 400,
     COL_FREQ = 10,
     EQUIL_TIME = 100000,
-    LS_EQUIL_TIME = 5000,
+    // LS_EQUIL_TIME = 5000,
+    LS_EQUIL_TIME = 0,
   };
 
   static constexpr double b_leng   = 0.5;
@@ -220,34 +245,36 @@ public:
   static constexpr double ch_leng  = 0.69;
 
   static int sys_size;
-  
+
   int all_time_ = -1, time_step_mic_ = -1, time_step_mac_ = -1, time_step_vt_ = -1, chem_beg_ = -1;
-  
+
   int wN = -1, bN = -1, hN = -1, ampN = -1, tailN = -1, headN = -1;
   double dt		= std::numeric_limits<double>::signaling_NaN();
   double tempera	= std::numeric_limits<double>::signaling_NaN();
   double inv_dt_sq	= std::numeric_limits<double>::signaling_NaN();
   double dt_c		= std::numeric_limits<double>::signaling_NaN();
   double ls_lambda      = std::numeric_limits<double>::signaling_NaN();
-  
+
   double3 L, iL, hL, ihL, grid_leng, i_grid_leng;
   double3 ls_grid_, i_ls_grid_;
-  
+
   int grid_numb[3] = {-1, -1, -1}, all_grid = -1;
   std::array<int, 3> ls_grid_num_;
 
   float coef_prob[3] = {-1.0, -1.0, -1.0}, prob_cutof = -1.0;
+
+  fdm decomp_type_ = CFD;
 
   explicit Parameter(char* cur_dir_) {
     cur_dir = cur_dir_;
 
     for (int i = 0; i < 3; i++)
       for (int j = 0; j < 3; j++)
-	intrparams.cf_repul[i][j] = intrparams.cf_gamma[i][j] = intrparams.cf_sigma[i][j] = std::numeric_limits<double>::signaling_NaN();
-    
+        intrparams.cf_repul[i][j] = intrparams.cf_gamma[i][j] = intrparams.cf_sigma[i][j] = std::numeric_limits<double>::signaling_NaN();
+
     intrparams.cf_bend	 = std::numeric_limits<double>::signaling_NaN();
     intrparams.cf_spring = std::numeric_limits<double>::signaling_NaN();
-    
+
     binfo.bind_center.x	= binfo.bind_center.y = binfo.bind_center.z = std::numeric_limits<double>::signaling_NaN();
     binfo.bind_radius	= std::numeric_limits<double>::signaling_NaN();
     binfo.bind_coef	= std::numeric_limits<double>::signaling_NaN();
@@ -258,7 +285,7 @@ public:
   Interactions GetIntractions() const {
     return intrparams;
   }
-  
+
   BindInfo GetBindInform() const {
     return binfo;
   }
@@ -266,11 +293,11 @@ public:
   int all_time() const {
     return all_time_;
   }
-  
+
   int time_step_mic() const {
     return time_step_mic_;
   }
-  
+
   int time_step_mac() const {
     return time_step_mac_;
   }
@@ -282,7 +309,7 @@ public:
   int chem_beg() const {
     return chem_beg_;
   }
-  
+
   void LoadParam() {
     LoadMacroParam();
     LoadBindParam();
@@ -322,7 +349,7 @@ public:
     PRT_WITH_TAG(BUF_SIZE);
     PRT_WITH_TAG(COL_FREQ);
     PRT_WITH_TAG(EQUIL_TIME);
-    
+
     PRT_WITH_TAG(b_leng);
     PRT_WITH_TAG(i_bleng);
     PRT_WITH_TAG(ch_leng);
@@ -330,25 +357,27 @@ public:
 
     const double rho = sys_size / (L.x * L.y * L.z);
     PRT_WITH_TAG(rho);
-    
+
     PRT_WITH_TAG(wN); PRT_WITH_TAG(bN); PRT_WITH_TAG(hN); PRT_WITH_TAG(ampN);
     PRT_WITH_TAG(tailN); PRT_WITH_TAG(headN);
 
     PRT_WITH_TAG(dt); PRT_WITH_TAG(tempera); PRT_WITH_TAG(inv_dt_sq);
     PRT_WITH_TAG(dt_c); PRT_WITH_TAG(ls_lambda);
-    
+
     PRT_WITH_TAG(L); PRT_WITH_TAG(iL); PRT_WITH_TAG(hL); PRT_WITH_TAG(ihL);
     PRT_WITH_TAG(grid_leng); PRT_WITH_TAG(i_grid_leng);
     PRT_WITH_TAG(ls_grid_); PRT_WITH_TAG(i_ls_grid_);
-    
+
     PRT_WITH_TAG(grid_numb[0]); PRT_WITH_TAG(grid_numb[1]); PRT_WITH_TAG(grid_numb[2]);
     PRT_WITH_TAG(all_grid);
     PRT_WITH_TAG(ls_grid_num_[0]); PRT_WITH_TAG(ls_grid_num_[1]); PRT_WITH_TAG(ls_grid_num_[2]);
-    
+
     PRT_WITH_TAG(coef_prob[0]);
     PRT_WITH_TAG(coef_prob[1]);
     PRT_WITH_TAG(coef_prob[2]);
     PRT_WITH_TAG(prob_cutof);
+
+    PRT_WITH_TAG(decomp_type_);
 
     ost << "COMPILE INFORM\n";
 #ifdef NO_THERMO_STAT
@@ -371,20 +400,6 @@ public:
 #endif
 #ifdef CALC_LOC_STRESS
     ost << "CALC_LOC_STRESS is defined.\n";
-
-#ifdef AT_FORCE_CENTER
-    ost << "AT_FORCE_CENTER is defined.\n";
-#endif
-#ifdef AT_HYPOT
-    ost << "AT_HYPOT is defined.\n";
-#endif
-#ifdef AT_MSP_GM
-    ost << "AT_MSP_GM is defined.\n";
-#endif
-#ifdef AT_MSP_LM
-    ost << "AT_MSP_LM is defined.\n";
-#endif
-
 #endif // end of CALC_LOC_STRESS
 
 #undef PRT_WITH_TAG

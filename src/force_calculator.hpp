@@ -103,10 +103,10 @@ public:
   
   // NOTE: this function is thread safe.
   void DistPairForceStress(const double3& rj,
-			   const double3& drji,
-			   const double3& dFji,
-			   const Parameter& param,
-			   const int stress_type) {
+                           const double3& drji,
+                           const double3& dFji,
+                           const Parameter& param,
+                           const int stress_type) {
     const int tid = omp_get_thread_num();
 
     const auto i_grid = GetLSGrid(rj + drji, param);
@@ -114,47 +114,47 @@ public:
 
     tensor3d stress;
     for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++)
-	stress[i][j] = drji[i] * dFji[j];
+                                  stress[i][j] = drji[i] * dFji[j];
 
     if (j_grid == i_grid) {
       // simply add local stress
       const auto j_grid_1d = GetLSGrid1d(j_grid, param);
       for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++)
-	  buf_lstress[stress_type][tid][j_grid_1d][i][j] += stress[i][j];
+                                    buf_lstress[stress_type][tid][j_grid_1d][i][j] += stress[i][j];
     } else {
       // spread local stress
       const std::array<int, 3> diff_grid = {
-	i_grid[0] - j_grid[0],
-	i_grid[1] - j_grid[1],
-	i_grid[2] - j_grid[2]
+        i_grid[0] - j_grid[0],
+        i_grid[1] - j_grid[1],
+        i_grid[2] - j_grid[2]
       };
-      
+
       const auto lambda = CalcLSLambda(j_grid, diff_grid, rj, drji, param);
       const int num_spreaded_cell = lambda.size();
       for (int i = 1; i < num_spreaded_cell; i++) {
-	auto base_pos = rj + drji * 0.5 * (lambda[i - 1] + lambda[i]);
-	ApplyPBC(base_pos, param);
-	const auto base_grid = GetLSGrid1d(GetLSGrid(base_pos, param), param);
-	const auto d_lambda = lambda[i] - lambda[i - 1];
-	for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++)
-	    buf_lstress[stress_type][tid][base_grid][j][k] += stress[j][k] * d_lambda;
+        auto base_pos = rj + drji * 0.5 * (lambda[i - 1] + lambda[i]);
+        ApplyPBC(base_pos, param);
+        const auto base_grid = GetLSGrid1d(GetLSGrid(base_pos, param), param);
+        const auto d_lambda = lambda[i] - lambda[i - 1];
+        for (int j = 0; j < 3; j++) for (int k = 0; k < 3; k++)
+                                      buf_lstress[stress_type][tid][base_grid][j][k] += stress[j][k] * d_lambda;
       }
     }
   }
 
   // NOTE: Central force decomposition
   void Decompose3NCfd(const double3& r1, const double3& r2, const double3& r3,
-		      const double3& F1, const double3& F2, const double3& F3,
-		      const Parameter& param) {
+                      const double3& F1, const double3& F2, const double3& F3,
+                      const Parameter& param) {
     auto dr13 = r3 - r1; MinImage(dr13, param);
     auto base_pos = r1 + 0.5 * dr13; ApplyPBC(base_pos, param);
     Decompose3N(r1, r2, r3, base_pos, F1, F2, F3, param);
   }
 
   void Decompose3NMSP(const double3& r1, const double3& r2, const double3& r3,
-		      const double3& F1, const double3& F2, const double3& F3,
-		      const double3& dr12, const double3& dr23, const double sign,
-		      const Parameter& param) {
+                      const double3& F1, const double3& F2, const double3& F3,
+                      const double3& dr12, const double3& dr23, const double sign,
+                      const Parameter& param) {
     const auto dr12_norm = dr12.norm2();
     const auto dr23_norm = dr23.norm2();
 
@@ -162,36 +162,39 @@ public:
 
     CHECK_EQUATION(dr12_norm >= dr23_norm * (1.0 + cos123) * 0.5, dr12_norm);
     CHECK_EQUATION(dr23_norm >= dr12_norm * (1.0 + cos123) * 0.5, dr23_norm);
-    
+
     const auto dr21_hat = -dr12 / dr12_norm;
     const auto dr23_hat = dr23 / dr23_norm;
 
     auto dr24_hat = dr21_hat + dr23_hat;
     dr24_hat /= dr24_hat.norm2();
-    
+
     const auto dr24_norm = std::sqrt(dr12_norm * dr23_norm);
 
     const auto r2_to_cent = dr24_hat * dr24_norm * sign;
     auto center = r2 + r2_to_cent;
-    
+
     ApplyPBC(center, param);
-    
+
     Decompose3N(r1, r2, r3, center, F1, F2, F3, param);
   }
 
-  void Decompose3NCMP(const double3& r1, const double3& r2, const double3& r3,
-		      const double3& F1, const double3& F2, const double3& F3,
-		      const double3& dr12, const double3& dr23,
-		      const Parameter& param) {
-    const auto dr13 = dr12 + dr23;
-    auto cm_pos = (3.0 * r1 + dr12 + dr13) / 3.0;
-    ApplyPBC(cm_pos, param);
-    Decompose3N(r1, r2, r3, cm_pos, F1, F2, F3, param);
+  void Decompose3NBisect(const double3& r1, const double3& r2, const double3& r3,
+                         const double3& F1, const double3& F2, const double3& F3,
+                         const double3& dr12, const double3& dr23,
+                         const double inv_dr12, const double inv_dr23,
+                         const Parameter& param) {
+    auto bisect = dr23 * inv_dr23 - dr12 * inv_dr12;
+    bisect /= bisect.norm2();
+    auto base_pos = r2 + bisect * param.ls_lambda;
+    ApplyPBC(base_pos, param);
+    Decompose3N(r1, r2, r3, base_pos, F1, F2, F3, param);
   }
-  
+
+  // NOTE: FCD case
   void Decompose3N(const double3& r1, const double3& r2, const double3& r3,
-		   const double3& F1, const double3& F2, const double3& F3,
-		   const Parameter& param) {
+                   const double3& F1, const double3& F2, const double3& F3,
+                   const Parameter& param) {
     auto dr21 = r1 - r2; MinImage(dr21, param);
     auto cross_point = r2 + F2 * (dr21 * dr21 / (F2 * dr21));
 
@@ -203,7 +206,7 @@ public:
     ApplyPBC(cross_point, param);
 
     accum_stress += F1.norm2() * dr41.norm2() + F2.norm2() * dr42.norm2() + F3.norm2() * dr43.norm2();
-    
+
     DistPairForceStress(cross_point, dr41, F1, param, ANGLE);
     DistPairForceStress(cross_point, dr42, F2, param, ANGLE);
     DistPairForceStress(cross_point, dr43, F3, param, ANGLE);
@@ -322,29 +325,40 @@ public:
     const double3 Ftb1(cf_b * (dr[0].x - cf_crs[1] * dr[1].x),
 		       cf_b * (dr[0].y - cf_crs[1] * dr[1].y),
 		       cf_b * (dr[0].z - cf_crs[1] * dr[1].z));
-    
+
     for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) {
-	d_virial[i][j] += dr[0][i] * Ftb0[j] + dr[1][i] * Ftb1[j];	
+	d_virial[i][j] += dr[0][i] * Ftb0[j] + dr[1][i] * Ftb1[j];
       }
 
     lap_conf += 2.0 * cf_b * (in_prod * (2.0 * (inv_dist[0] + inv_dist[1]) + in_prod * inv_dr_prod * inv_dr_prod) + 1.0);
-    
+
     const double3 Ftb_sum = Ftb0 - Ftb1;
-    
+
     F[0] -= Ftb0;
     F[1] += Ftb_sum;
     F[2] += Ftb1;
 
 #ifdef CALC_LOC_STRESS
-#ifdef AT_HYPOT
-    Decompose3NCfd(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
-#elif defined AT_FORCE_CENTER
-    Decompose3N(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
-#elif defined AT_MSP_GM
-    Decompose3NMSP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], 1.0, param);
-#elif defined AT_MSP_LM
-    Decompose3NMSP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], -1.0, param);
-#endif
+    switch (param.decomp_type_) {
+    case CFD:
+      Decompose3NCfd(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
+      break;
+    case FCD:
+      Decompose3N(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
+      break;
+    case MSP_GM:
+      Decompose3NMSP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], 1.0, param);
+      break;
+    case MSP_LM:
+      Decompose3NMSP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], -1.0, param);
+      break;
+    case BISECT:
+      Decompose3NBisect(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], inv_dr[0], inv_dr[1], param);
+      break;
+    default:
+      std::cerr << "Warning! Local stress is not calculated. Did you specify the fdm?\n";
+      break;
+    }
 #endif // end of CALC_LOC_STRESS
   }
 
@@ -371,11 +385,11 @@ public:
     const int th_numb   = omp_get_max_threads();
     grid_numbtw = param.grid_numb[0] * param.grid_numb[1];
     numb_band   = param.grid_numb[2] / th_numb;
-  
+
     p_num_band[0] = 0;
     p_num_band[1] = param.grid_numb[2] / th_numb / 2;
     p_num_band[2] = param.grid_numb[2] / th_numb - p_num_band[1];
-    
+
     CHECK_EQUATION(param.grid_numb[2] % numb_band == 0, param.grid_numb[2]);
   }
 
@@ -385,26 +399,26 @@ public:
 		     ChemInfo& cheminfo);
 
   void CountNearWater(const int& itr_id,
-		      const int& tar_id,		      
-		      const par_prop& i_prp,
-		      const par_prop& t_prp,
-		      float dist,
-		      ChemInfo& cheminfo);
+                      const int& tar_id,
+                      const par_prop& i_prp,
+                      const par_prop& t_prp,
+                      float dist,
+                      ChemInfo& cheminfo);
 
   void CalcForceHalf(const double3*  __restrict pr,
-		     const par_prop* __restrict prop,
-		     double3*        __restrict force,
-		     const CellList&            clist,
-		     const Parameter&           param,
-		     const int                  call_num);
+                     const par_prop* __restrict prop,
+                     double3*        __restrict force,
+                     const CellList&            clist,
+                     const Parameter&           param,
+                     const int                  call_num);
 
   void Collision_pow_one(double3& __restrict vi,
-			 double3& __restrict vj,
-			 const double3& __restrict dr,
-			 const double cf_g,
-			 const double nrml,
-			 const double inv_dr,
-			 const Parameter& __restrict param) {
+                         double3& __restrict vj,
+                         const double3& __restrict dr,
+                         const double cf_g,
+                         const double nrml,
+                         const double inv_dr,
+                         const Parameter& __restrict param) {
     const double  g_invdr_dt = cf_g * (inv_dr - 1.0) * param.dt_c;
     const double  cf_numer   = inv_dr * g_invdr_dt;
     const double3 dv         = vi - vj;

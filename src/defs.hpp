@@ -33,20 +33,16 @@
 
 #define CALC_LOC_STRESS
 
-#ifdef CALC_LOC_STRESS
-// #define AT_FORCE_CENTER
-// #define AT_HYPOT // NOTE: same as Central Force Decomposition
-// #define AT_MSP_GM
-// #define AT_MSP_LM
-// #define CENTER_OF_MASS
-// #define MOL_STRESS_CENT
-#define BISECT_VECTOR
-#endif
-
 enum par_prop {
   Water = 0, Hyphil, Hyphob,
 
   Numprop,
+};
+
+enum fdm {
+  CFD = 0, FCD, MSP_GM, MSP_LM, BISECT,
+
+  NumDecomp,
 };
 
 // Local stress type
