@@ -4,23 +4,25 @@
 #include <array>
 #include "mvector3.hpp"
 
-//modes
-//for debug
+// modes
+// for debug
 // #define NO_THERMO_STAT
 
 //chem
+#if 0 // NOTE: We never use this mode in this project.
 // #define CHEM_MODE
 #ifdef CHEM_MODE
 #define INVERSE_CHEM
 #endif
+#endif
 
-//boundary
+// boundary
 // #define Y_REFLECT_BOUND
 
-//bind potential
+// bind potential
 // #define ADD_BIND_POTENT
 
-//position restraint
+// position restraint
 // #define ADD_POSRES
 
 //
@@ -32,10 +34,10 @@
 #define CALC_LOC_STRESS
 
 #ifdef CALC_LOC_STRESS
-// #define RELAXED_BASE_POS
-// #define CENTRAL_FORCE
-// #define MIN_STRESS_POS_POSITIVE
-// #define MIN_STRESS_POS_NEGATIVE
+// #define AT_FORCE_CENTER
+// #define AT_HYPOT // NOTE: same as Central Force Decomposition
+// #define AT_MSP_GM
+// #define AT_MSP_LM
 // #define CENTER_OF_MASS
 // #define MOL_STRESS_CENT
 #define BISECT_VECTOR
@@ -43,7 +45,7 @@
 
 enum par_prop {
   Water = 0, Hyphil, Hyphob,
-  
+
   Numprop,
 };
 
@@ -54,7 +56,7 @@ enum {
   ANGLE,
   // DIHEDRAL,
   KINETIC,
-  
+
   NUM_LS_TYPE,
 };
 
@@ -113,48 +115,47 @@ inline const tensor3d operator - (const tensor3d& lhs, const tensor3d& rhs) {
   return ret;
 }
 
-
-#define CHECK_FILE_OPEN(fin)					\
-  do {								\
-    if (!fin) {							\
+#define CHECK_FILE_OPEN(fin)                                    \
+  do {                                                          \
+    if (!fin) {                                                 \
       std::cerr << "Cannot open " << fname << "." << std::endl;	\
-      std::cerr << __FILE__ << " " << __LINE__ << std::endl;	\
-      std::exit(1);						\
-    }								\
+      std::cerr << __FILE__ << " " << __LINE__ << std::endl;    \
+      std::exit(1);                                             \
+    }                                                           \
   } while (false)
 
-#define CHECK_FILESTREAM_IS_OK(fin)				\
-  do {								\
-    if (fin.fail()) {						\
-      std::cerr << "There is a problem in file stream.\n";	\
+#define CHECK_FILESTREAM_IS_OK(fin)                           \
+  do {                                                        \
+    if (fin.fail()) {                                         \
+      std::cerr << "There is a problem in file stream.\n";    \
       std::cerr << __FILE__ << " " << __LINE__ << std::endl;	\
-      std::exit(1);						\
-    }								\
+      std::exit(1);                                           \
+    }                                                         \
   } while (false)
 
-#define CHECK_FILE_IS_EOF(fin)					\
-  do {								\
-    double buf = 0.0;						\
-    fin >> buf;							\
-    if (!fin.eof()) {						\
-      std::cerr << "is not eof\n.";				\
+#define CHECK_FILE_IS_EOF(fin)                                \
+  do {                                                        \
+    double buf = 0.0;                                         \
+    fin >> buf;                                               \
+    if (!fin.eof()) {                                         \
+      std::cerr << "is not eof\n.";                           \
       std::cerr << __FILE__  << " " << __LINE__ << std::endl;	\
-      std::exit(1);						\
-    }								\
+      std::exit(1);                                           \
+    }                                                         \
   } while (false)
 
-#define CHECK_EQUATION(eqa, val)					\
-  do {									\
-    if (!(eqa)) {							\
-      std::cerr << #eqa << " is not satisfied.\n";			\
-      std::cerr << #val << " = " << val << std::endl;			\
-      std::cerr << __FILE__ << " " << __LINE__ << std::endl;		\
-      std::exit(1);							\
-    }									\
+#define CHECK_EQUATION(eqa, val)                              \
+  do {                                                        \
+    if (!(eqa)) {                                             \
+      std::cerr << #eqa << " is not satisfied.\n";            \
+      std::cerr << #val << " = " << val << std::endl;         \
+      std::cerr << __FILE__ << " " << __LINE__ << std::endl;  \
+      std::exit(1);                                           \
+    }                                                         \
   } while (false)
 
 inline FILE* xfopen(const char* __restrict filename,
-		    const char* __restrict  mode) {
+                    const char* __restrict  mode) {
   FILE* f = fopen(filename, mode);
   if (f == nullptr) {
     std::cerr << filename << ": Cannot open file\n.";

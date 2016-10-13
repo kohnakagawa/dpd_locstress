@@ -371,27 +371,21 @@ public:
 #endif
 #ifdef CALC_LOC_STRESS
     ost << "CALC_LOC_STRESS is defined.\n";
-    
-#ifdef RELAXED_BASE_POS
-    ost << "RELAXED_BASE_POS is defined.\n";
+
+#ifdef AT_FORCE_CENTER
+    ost << "AT_FORCE_CENTER is defined.\n";
 #endif
-#ifdef CENTRAL_FORCE
-    ost << "CENTRAL_FORCE is defined.\n";
+#ifdef AT_HYPOT
+    ost << "AT_HYPOT is defined.\n";
 #endif
-#ifdef MIN_STRESS_POS_POSITIVE
-    ost << "MIN_STRESS_POS_POSITIVE is defined.\n";
+#ifdef AT_MSP_GM
+    ost << "AT_MSP_GM is defined.\n";
 #endif
-#ifdef MIN_STRESS_POS_NEGATIVE
-    ost << "MIN_STRESS_POS_NEGATIVE is defined.\n";
+#ifdef AT_MSP_LM
+    ost << "AT_MSP_LM is defined.\n";
 #endif
-#ifdef CENTER_OF_MASS
-    ost << "CENTER_OF_MASS is defined.\n";
-#endif
-#ifdef MOL_STRESS_CENT
-    ost << "MOL_STRESS_CENT is defined.\n";
-#endif
-    
-#endif
+
+#endif // end of CALC_LOC_STRESS
 
 #undef PRT_WITH_TAG
   }

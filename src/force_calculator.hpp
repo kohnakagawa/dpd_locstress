@@ -336,33 +336,14 @@ public:
     F[2] += Ftb1;
 
 #ifdef CALC_LOC_STRESS
-#ifdef CENTRAL_FORCE
+#ifdef AT_HYPOT
     Decompose3NCfd(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
-#elif defined RELAXED_BASE_POS
+#elif defined AT_FORCE_CENTER
     Decompose3N(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, param);
-#elif defined MIN_STRESS_POS_POSITIVE
+#elif defined AT_MSP_GM
     Decompose3NMSP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], 1.0, param);
-#elif defined MIN_STRESS_POS_NEGATIVE
+#elif defined AT_MSP_LM
     Decompose3NMSP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], -1.0, param);
-#elif defined CENTER_OF_MASS
-    Decompose3NCMP(r[0], r[1], r[2], -Ftb0, Ftb_sum, Ftb1, dr[0], dr[1], param);
-#elif defined MOL_STRESS_CENT
-    const auto base_grid = GetLSGrid1d(GetLSGrid(r[1], param), param);
-    const int tid = omp_get_thread_num();
-    for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++) {
-	buf_lstress[ANGLE][tid][base_grid][i][j] += dr[0][i] * Ftb0[j] + dr[1][i] * Ftb1[j];
-      }
-#elif defined BISECT_VECTOR
-    double3 bisect = dr[1] * inv_dr[1] - dr[0] * inv_dr[0];
-    bisect /= bisect.norm2();
-    double3 base_pos = r[1] + bisect * param.ls_lambda;
-    ApplyPBC(base_pos, param);
-    Decompose3N(r[0], r[1], r[2], base_pos, -Ftb0, Ftb_sum, Ftb1, param);
-#else
-    const double3 bi_vec = Ftb_sum / Ftb_sum.norm2();
-    double3 base_pos = r[1] + bi_vec * param.ls_lambda;
-    ApplyPBC(base_pos, param);
-    Decompose3N(r[0], r[1], r[2], base_pos, -Ftb0, Ftb_sum, Ftb1, param);
 #endif
 #endif // end of CALC_LOC_STRESS
   }
