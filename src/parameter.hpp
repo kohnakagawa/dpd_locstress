@@ -236,8 +236,7 @@ public:
     BUF_SIZE = 400,
     COL_FREQ = 10,
     EQUIL_TIME = 100000,
-    // LS_EQUIL_TIME = 5000,
-    LS_EQUIL_TIME = 0,
+    LS_EQUIL_TIME = 5000,
   };
 
   static constexpr double b_leng   = 0.5;
