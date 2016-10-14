@@ -20,30 +20,23 @@ def main(files, fout_name):
         stdev_stress += (lstress - ave_stress) * (lstress - ave_stress)
     stdev_stress /= len(files)
     stdev_stress = np.sqrt(stdev_stress)
-    stdev_stress /= math.sqrt(len(files))
         
     result = np.hstack((grid_inform, ave_stress, stdev_stress))
     np.savetxt(fout_name, result)
         
 if __name__ == "__main__":
-    ls_list = set(['all', 'imol', 'bond', 'angle', 'kin'])
+    ls_list = ('all', 'imol', 'bond', 'angle', 'kin')
     
     argvs = sys.argv
     argc  = len(argvs)
-    if argc != 3:
+    if argc != 2:
         print "Usage:"
-        print "$ python %s dir_name localstress_component" % argvs[0]
+        print "$ python %s dir_name" % argvs[0]
         quit()
 
-    ls_comp = argvs[2]
-    if not (ls_comp in ls_list) :
-        print "Unknown local stress component %s." % ls_comp
-        print "The following lists show the supporting local stress components."
-        print ls_list
-        quit()
-    
-    cdir   = argvs[1]
-    fnames = os.path.join(cdir, "sample*/loc_stress_%s.txt" % ls_comp)
-    files  = glob.glob(fnames)
-    fout   = os.path.join(cdir, "loc_stress_ave_%s.txt" % ls_comp)
-    main(files, fout)
+    for ls_comp in ls_list:
+        cdir   = argvs[1]
+        fnames = os.path.join(cdir, "sample*/loc_stress_%s.txt" % ls_comp)
+        files  = glob.glob(fnames)
+        fout   = os.path.join(cdir, "loc_stress_ave_%s.txt" % ls_comp)
+        main(files, fout)
